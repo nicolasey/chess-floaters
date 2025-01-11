@@ -2,6 +2,7 @@
   "name": "@nicolasey/chess-floaters",
   "module": "index.ts",
   "type": "module",
+  "version": "0.1.2",
   "devDependencies": {
     "@types/bun": "latest"
   },
