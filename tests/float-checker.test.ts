@@ -1,7 +1,7 @@
-import { test, expect } from 'bun:test';
-import type { PlayerPairingFloatContract } from '../floater';
-import { Floatter } from '../src/floatter.enum';
-import { canFloat } from '../src/floater-checker';
+import { test, expect } from "bun:test";
+import type { PlayerPairingFloatContract } from "../floater";
+import { Floatter } from "../src/floatter.enum";
+import { canFloat } from "../src/floater-checker";
 
 test("when_player_has_floatted_asc", () => {
   const history: PlayerPairingFloatContract[] = [
@@ -14,7 +14,6 @@ test("when_player_has_floatted_asc", () => {
   const result = canFloat(Floatter.ASC, history);
   expect(result).toBeFalse();
 });
-/*
 
 test("when_player_has_floatted_desc_lately", () => {
   const history: PlayerPairingFloatContract[] = [
@@ -69,7 +68,7 @@ test("when_player_floated_like_boat", () => {
   expect(result).toBeFalse();
   const asc = canFloat(Floatter.ASC, history);
   expect(asc).toBeFalse();
-})
+});
 
 test("when_I_reduce_protection", () => {
   const history: PlayerPairingFloatContract[] = [
@@ -83,7 +82,7 @@ test("when_I_reduce_protection", () => {
   expect(result).toBeTrue();
   const asc = canFloat(Floatter.ASC, history, 1);
   expect(asc).toBeFalse();
-})
+});
 
 test("when_I_disable_protection", () => {
   const history: PlayerPairingFloatContract[] = [
@@ -97,5 +96,4 @@ test("when_I_disable_protection", () => {
   expect(result).toBeTrue();
   const asc = canFloat(Floatter.ASC, history, 0);
   expect(asc).toBeTrue();
-})
-*/
+});
