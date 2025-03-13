@@ -1,4 +1,4 @@
-import type { PlayerPairingFloatContract } from "../floater";
+import type { PlayerPairingFloatContract } from "../floater.types";
 import { Floatter } from "./floatter.enum";
 
 /**

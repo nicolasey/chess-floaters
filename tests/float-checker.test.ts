@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import type { PlayerPairingFloatContract } from "../floater";
+import type { PlayerPairingFloatContract } from "../floater.types";
 import { Floatter } from "../src/floatter.enum";
 import { canFloat } from "../src/floater-checker";
 
