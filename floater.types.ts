@@ -1,5 +1,5 @@
-import type { Floatter } from "./src/floatter.enum";
+import type { Floater } from "./src/floater.enum";
 
 export type PlayerPairingFloatContract = {
-  floater: Floatter | null;
+  floater: Floater | null;
 };
