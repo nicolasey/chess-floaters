@@ -1,5 +1,5 @@
 import type { Floater } from "./floater.enum";
 
-export type PlayerPairingFloatContract = {
+export type FloatRecord = {
   floater: Floater | null;
 };
