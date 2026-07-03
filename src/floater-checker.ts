@@ -1,15 +1,15 @@
 import type { PlayerPairingFloatContract } from "../floater.types";
-import { Floatter } from "./floatter.enum";
+import { Floater } from "./floater.enum";
 
 /**
  * Checks whether a Player can float this Round
  *
- * @param direction Floatter
+ * @param direction The float direction to check eligibility for
  * @param playerHistory PlayerPairingFloatContract[] More likely a PlayedGame[] that implements this type
  * @param protection Level of protection | defaults to 2 | some systems reduces protection to find pairings
  */
 export function canFloat(
-  direction: Floatter,
+  direction: Floater,
   playerHistory: PlayerPairingFloatContract[],
   protection = 2,
 ) {
