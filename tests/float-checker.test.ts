@@ -84,6 +84,28 @@ test("when_I_reduce_protection", () => {
   expect(asc).toBeFalse();
 });
 
+test("when_history_shorter_than_protection_window", () => {
+  const history: PlayerPairingFloatContract[] = [
+    { floater: Floatter.ASC },
+  ];
+
+  const result = canFloat(Floatter.ASC, history);
+  expect(result).toBeFalse();
+  const desc = canFloat(Floatter.DESC, history);
+  expect(desc).toBeTrue();
+});
+
+test("when_history_shorter_than_protection_window_and_no_float", () => {
+  const history: PlayerPairingFloatContract[] = [
+    { floater: null },
+  ];
+
+  const result = canFloat(Floatter.ASC, history);
+  expect(result).toBeTrue();
+  const desc = canFloat(Floatter.DESC, history);
+  expect(desc).toBeTrue();
+});
+
 test("when_I_disable_protection", () => {
   const history: PlayerPairingFloatContract[] = [
     { floater: null },
