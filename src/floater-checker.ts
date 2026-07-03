@@ -4,9 +4,9 @@ import { Floater } from "./floater.enum";
 /**
  * Checks whether a Player can float this Round
  *
- * @param direction The float direction to check eligibility for
- * @param playerHistory PlayerPairingFloatContract[] More likely a PlayedGame[] that implements this type
- * @param protection Level of protection | defaults to 2 | some systems reduces protection to find pairings
+ * @param direction The float direction to check eligibility for (ASC or DESC)
+ * @param playerHistory The player's pairing history; each entry records whether they floated that round
+ * @param protection How many recent rounds to check for a prior float (default 2). Pass 0 to skip the check and always allow floating.
  */
 export function canFloat(
   direction: Floater,
