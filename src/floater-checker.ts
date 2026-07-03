@@ -18,10 +18,7 @@ export function canFloat(
     index >= playerHistory.length - protection;
     index--
   ) {
-    if (
-      playerHistory[index].floater &&
-      playerHistory[index].floater === direction
-    )
+    if (playerHistory[index].floater === direction)
       return false;
   }
   return true;
