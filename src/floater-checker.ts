@@ -1,6 +1,8 @@
 import type { FloatRecord } from "../floater.types";
 import { Floater } from "./floater.enum";
 
+const DEFAULT_FLOAT_PROTECTION = 2;
+
 /**
  * Checks whether a Player can float this Round
  *
@@ -11,11 +13,11 @@ import { Floater } from "./floater.enum";
 export function canFloat(
   direction: Floater,
   playerHistory: FloatRecord[],
-  protection = 2,
+  protection = DEFAULT_FLOAT_PROTECTION,
 ) {
   for (
     let index = playerHistory.length - 1;
-    index >= playerHistory.length - protection;
+    index >= Math.max(0, playerHistory.length - protection);
     index--
   ) {
     if (
