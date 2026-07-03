@@ -1,5 +1,7 @@
-import type { PlayerPairingFloatContract } from "../floater.types";
+import type { FloatRecord } from "./floater.types";
 import { Floater } from "./floater.enum";
+
+const DEFAULT_FLOAT_PROTECTION = 2;
 
 /**
  * Checks whether a Player can float this Round
@@ -10,18 +12,15 @@ import { Floater } from "./floater.enum";
  */
 export function canFloat(
   direction: Floater,
-  playerHistory: PlayerPairingFloatContract[],
-  protection = 2,
+  playerHistory: FloatRecord[],
+  protection = DEFAULT_FLOAT_PROTECTION,
 ) {
   for (
     let index = playerHistory.length - 1;
-    index >= playerHistory.length - protection;
+    index >= Math.max(0, playerHistory.length - protection);
     index--
   ) {
-    if (
-      playerHistory[index].floater &&
-      playerHistory[index].floater === direction
-    )
+    if (playerHistory[index].floater === direction)
       return false;
   }
   return true;
