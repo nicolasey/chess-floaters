@@ -15,7 +15,7 @@ export function canFloat(
 ) {
   for (
     let index = playerHistory.length - 1;
-    index >= playerHistory.length - protection;
+    index >= playerHistory.length - protection && index >= 0;
     index--
   ) {
     if (
