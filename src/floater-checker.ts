@@ -1,4 +1,4 @@
-import type { FloatRecord } from "../floater.types";
+import type { FloatRecord } from "./floater.types";
 import { Floater } from "./floater.enum";
 
 const DEFAULT_FLOAT_PROTECTION = 2;
