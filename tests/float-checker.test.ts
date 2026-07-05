@@ -85,24 +85,24 @@ test("when_I_reduce_protection", () => {
 });
 
 test("when_history_shorter_than_protection_window", () => {
-  const history: PlayerPairingFloatContract[] = [
-    { floater: Floatter.ASC },
+  const history: FloatRecord[] = [
+    { floater: Floater.ASC },
   ];
 
-  const result = canFloat(Floatter.ASC, history);
+  const result = canFloat(Floater.ASC, history);
   expect(result).toBeFalse();
-  const desc = canFloat(Floatter.DESC, history);
+  const desc = canFloat(Floater.DESC, history);
   expect(desc).toBeTrue();
 });
 
 test("when_history_shorter_than_protection_window_and_no_float", () => {
-  const history: PlayerPairingFloatContract[] = [
+  const history: FloatRecord[] = [
     { floater: null },
   ];
 
-  const result = canFloat(Floatter.ASC, history);
+  const result = canFloat(Floater.ASC, history);
   expect(result).toBeTrue();
-  const desc = canFloat(Floatter.DESC, history);
+  const desc = canFloat(Floater.DESC, history);
   expect(desc).toBeTrue();
 });
 
