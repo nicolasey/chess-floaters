@@ -51,7 +51,8 @@ canFloat(Floater.DESC, history, 0); // true  — protection disabled
 | `protection` | `number` | How many recent rounds to scan. `0` disables the check |
 
 Returns `true` if the player did **not** float in that direction within the last
-`protection` rounds.
+`protection` rounds. Throws `RangeError` if `protection` is not a non-negative
+integer — an invalid window must not silently read as "float allowed".
 
 ### `Floater`
 

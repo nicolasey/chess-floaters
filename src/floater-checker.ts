@@ -15,6 +15,13 @@ export function canFloat(
   playerHistory: FloatRecord[],
   protection = DEFAULT_FLOAT_PROTECTION,
 ) {
+  // ponytail: reject rather than clamp — Math.max(0, protection) would silently
+  // turn garbage into "float allowed", the unsafe direction for a pairing rule.
+  if (!Number.isInteger(protection) || protection < 0)
+    throw new RangeError(
+      `protection must be a non-negative integer, got ${protection}`,
+    );
+
   for (
     let index = playerHistory.length - 1;
     index >= Math.max(0, playerHistory.length - protection);

@@ -119,3 +119,29 @@ test("when_I_disable_protection", () => {
   const asc = canFloat(Floater.ASC, history, 0);
   expect(asc).toBeTrue();
 });
+
+test("when_history_is_empty", () => {
+  const history: FloatRecord[] = [];
+
+  expect(canFloat(Floater.ASC, history)).toBeTrue();
+  expect(canFloat(Floater.DESC, history)).toBeTrue();
+});
+
+test("when_player_floated_just_outside_protection_window", () => {
+  const history: FloatRecord[] = [
+    { floater: null },
+    { floater: Floater.DESC }, // exactly one round too old to matter
+    { floater: null },
+    { floater: null },
+  ];
+
+  expect(canFloat(Floater.DESC, history)).toBeTrue();
+});
+
+test("when_protection_is_invalid", () => {
+  const history: FloatRecord[] = [{ floater: Floater.DESC }];
+
+  for (const bad of [-1, 1.5, NaN, Infinity]) {
+    expect(() => canFloat(Floater.DESC, history, bad)).toThrow(RangeError);
+  }
+});
