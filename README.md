@@ -16,11 +16,9 @@ bun add @nicolasey/chess-floaters
 npm install @nicolasey/chess-floaters
 ```
 
-Published to GitHub Packages, so `.npmrc` needs:
-
-```
-@nicolasey:registry=https://npm.pkg.github.com
-```
+> Ships as TypeScript source, no build step. Works with Bun and with any
+> bundler or `tsconfig` using `moduleResolution: "bundler"`. It does **not**
+> resolve under `moduleResolution: "node16"`/`"nodenext"`.
 
 ## Usage
 

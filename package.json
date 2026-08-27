@@ -1,19 +1,25 @@
 {
   "name": "@nicolasey/chess-floaters",
-  "module": "index.ts",
+  "version": "0.1.7",
   "type": "module",
-  "version": "0.1.8",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0 || ^7.0.0"
-  },
+  "module": "index.ts",
+  "types": "./index.ts",
+  "exports": "./index.ts",
+  "files": [
+    "index.ts",
+    "src"
+  ],
   "private": false,
   "publishConfig": {
     "access": "public"
   },
   "repository": {
-    "url": "https://github.com/nicolasey/chess-floaters.git"
+    "url": "git+https://github.com/nicolasey/chess-floaters.git"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0 || ^7.0.0"
   }
 }
