@@ -137,6 +137,21 @@ FIDE art. 1.4 — the library applies that itself, so record the round as it
 happened rather than translating it. The split is by points, not by label: a
 zero-point bye scores what a loss scores, so it is a `FORFEIT` here.
 
+## Which criterion binds whom
+
+The downfloat and upfloat criteria attach to two different decisions in bracket
+pairing, not to the two ends of one pairing:
+
+| Decision | Player to test | Call |
+|---|---|---|
+| Which resident do I leave unpaired, to move down a bracket? | that resident | `canFloat(Floater.DESC, …)` — C.14, C.16 |
+| Which resident do I pair with a moved-down player? | that resident | `canFloat(Floater.ASC, …)` — C.15, C.17 |
+
+Both are about residents, in two different roles. There is deliberately no
+pair-level helper: each decision is one call on one player, and a
+`canPairFloat(higher, lower)` would encode a rule FIDE does not state. See
+[the traceability doc](./docs/fide-float-rules.md) for the article references.
+
 ## FIDE compliance
 
 `canFloat` implements the lookback of FIDE (Dutch) criteria C.14–C.17 and

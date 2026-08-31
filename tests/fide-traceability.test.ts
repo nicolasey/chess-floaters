@@ -18,9 +18,11 @@ import { readFileSync, readdirSync } from "node:fs";
  * what the library cannot see is the round that was never pushed. FL-13 pins
  * that failure instead.
  *
- * FL-19 (C.14/C.16 vs C.15/C.17) — the downfloat criteria apply to the resident
- * downfloater and the upfloat criteria to the MDP opponent. `canFloat` sees one
- * player, so choosing which side to test with which direction is the caller's.
+ * FL-19 (C.14/C.16 vs C.15/C.17) — the two directions attach to two different
+ * decisions, not to the two ends of one pairing: DESC for the resident about to
+ * be left unpaired, ASC for the resident about to be paired with an MDP. Both
+ * are one `canFloat` on one player, so there is nothing extra to build; what
+ * cannot be checked from in here is which decision the caller was making.
  *
  * FL-18 (C.18–C.21) — score-difference tie-breaks, out of scope: they need the
  * bracket scores, and this package only ever sees float directions.
