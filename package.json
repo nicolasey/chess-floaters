@@ -2,13 +2,21 @@
   "name": "@nicolasey/chess-floaters",
   "version": "0.1.7",
   "type": "module",
-  "module": "index.ts",
-  "types": "./index.ts",
-  "exports": "./index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
-    "index.ts",
-    "src"
+    "dist"
   ],
+  "scripts": {
+    "build": "bun build ./index.ts --outdir dist --target node && tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  },
   "private": false,
   "publishConfig": {
     "access": "public"
