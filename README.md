@@ -23,20 +23,29 @@ npm install @nicolasey/chess-floaters
 ## Usage
 
 ```ts
-import { canFloat, Floater, Unplayed, type FloatRecord } from "@nicolasey/chess-floaters";
+import {
+  canFloat,
+  floatCriterion,
+  Floater,
+  Unplayed,
+  type FloatRecord,
+} from "@nicolasey/chess-floaters";
 
 // Oldest round first, most recent last. One entry per round, played or not:
 // byes count as downfloats. See docs/fide-float-rules.md.
 const history: FloatRecord[] = [
-  { floater: null },          // round 1: no float
-  { floater: Unplayed.BYE }   // round 2: bye — a downfloat under art. 1.4
+  { floater: null },         // round 1: paired on level score
+  { floater: Unplayed.BYE }, // round 2: bye — a downfloat under art. 1.4
+  { floater: null },         // round 3: level again
 ];
 
-canFloat(Floater.DESC, history); // false — floated down too recently
+canFloat(Floater.DESC, history); // false — that bye was a downfloat, two rounds back
 canFloat(Floater.ASC, history);  // true
 
 canFloat(Floater.DESC, history, 1); // true  — only look back 1 round
 canFloat(Floater.DESC, history, 0); // true  — protection disabled
+
+floatCriterion(Floater.DESC, history); // "C16" — which criterion is at stake
 ```
 
 ## API
@@ -47,7 +56,7 @@ canFloat(Floater.DESC, history, 0); // true  — protection disabled
 |---|---|---|
 | `direction` | `Floater` | Direction to test: `Floater.ASC` (`↑`) or `Floater.DESC` (`↓`) |
 | `playerHistory` | `FloatRecord[]` | Chronological history, oldest first, one entry per round played or not |
-| `protection` | `number` | How many recent rounds to scan. `0` disables the check |
+| `protection` | `number \| FloatCriterion` | How strict to be — a count of recent rounds (`0` disables the check), or the least-priority criterion still enforced |
 
 Returns `true` if the player did **not** float in that direction within the last
 `protection` rounds.
@@ -62,6 +71,29 @@ never read, and so never validated.
 
 ```ts
 enum Floater { ASC = "↑", DESC = "↓" }
+```
+
+### `floatCriterion(direction, playerHistory): FloatCriterion | null`
+
+Names the criterion a float in that direction would breach — `"C14"`, `"C15"`,
+`"C16"`, `"C17"` — or `null` if none would be. These are *quality* criteria,
+which FIDE minimises in priority order rather than forbidding outright, so rank
+candidate pairings by what comes back and take the cheapest instead of
+discarding everything that fails.
+
+```ts
+floatCriterion(Floater.DESC, history); // "C14" — a downfloat last round, the costliest
+```
+
+`canFloat` also takes a criterion in place of a round count, as the
+least-priority one still enforced. That is how FIDE relaxes them, and it reaches
+two steps a round count cannot — a count cannot split a round, so it cannot
+enforce C.14 while tolerating C.15:
+
+```ts
+canFloat(dir, history, "C17"); // all four enforced — same as protection 2
+canFloat(dir, history, "C15"); // previous round only — same as protection 1
+canFloat(dir, history, "C14"); // downfloat repeats forbidden, upfloat repeats tolerated
 ```
 
 ### `recordFor({ playerScore, opponentScore }): FloatRecord`

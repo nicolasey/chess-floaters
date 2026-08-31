@@ -54,25 +54,40 @@ The four criteria the library exists to serve, verbatim:
 | FL-7 | C.14–C.17 | Direction-matched: past downfloats never restrict an upfloat, and the reverse | `[…, DESC]` → `canFloat(ASC)` is `true` | `when_player_has_floatted_asc`, `when_player_has_floatted_desc_lately` | ✅ |
 | FL-8 | C.14–C.17 | No float in the window → both directions allowed | `[]` and `[null, null, null]` → `true` | `when_history_is_empty`, `when_player_has_not_floatted` | ✅ |
 | FL-9 | — | These are quality criteria, so the check must be relaxable | `protection` 1 narrows the window, 0 disables it | `when_I_reduce_protection`, `when_I_disable_protection` | ✅ |
-| FL-10 | C.14–C.17 | Round distance outranks direction, so the four positions must be **rankable**, not just pass/fail | previous-round repeat costs more than a two-rounds-back one | `FL-10:` | ✅ recipe pinned |
+| FL-10 | C.14–C.17 | Round distance outranks direction, so the four positions must be **rankable**, not just pass/fail | `floatCriterion` names the criterion breached: C.14/C.15 for the previous round, C.16/C.17 for two before | `FL-10:` | ✅ |
+| FL-20 | C.14–C.17 | Quality criteria are relaxed one at a time down the priority order, so every step must be expressible | `canFloat(dir, history, "C14")` enforces C.14 while tolerating C.15 | `FL-20:` ×2 | ✅ |
 | FL-19 | C.14/C.16 vs C.15/C.17 | Downfloat criteria bind the resident downfloater, upfloat criteria the MDP opponent | caller tests both sides of the pair | n/a | ⚠️ caller contract |
 
-FL-10 is the shape mismatch worth understanding before building on this. C.14–C.17
-sit in the *quality* block; only C.1–C.3 are absolute, and FIDE guarantees a legal
-pairing exists precisely because quality criteria give way when nothing satisfies
-them. A boolean models an absolute prohibition, so an engine that reads `false` as
-"forbidden" can dead-end on a bracket FIDE calls pairable, and the priority order
-(C.14 ≻ C.15 ≻ C.16 ≻ C.17) is flattened away. Use it as a cost function:
+FL-10 and FL-20 are the shape mismatch worth understanding before building on
+this. C.14–C.17 sit in the *quality* block; only C.1–C.3 are absolute, and FIDE
+guarantees a legal pairing exists precisely because quality criteria give way
+when nothing satisfies them. A bare boolean models an absolute prohibition, so
+an engine that reads `false` as "forbidden" can dead-end on a bracket FIDE calls
+pairable.
+
+Two functions answer that, at the two altitudes an engine works at.
+
+**Ranking candidates** — `floatCriterion` names what is at stake, so pairings
+can be sorted by cost instead of filtered:
 
 ```ts
-// 0 = clean, 1 = repeats a float from two rounds back (C.16/C.17),
-// 2 = repeats one from the previous round (C.14/C.15) — the costlier violation.
-const cost = canFloat(dir, history, 1) ? (canFloat(dir, history, 2) ? 0 : 1) : 2;
+floatCriterion(Floater.DESC, history); // "C14" | "C15" | "C16" | "C17" | null
 ```
 
-Then sort candidate pairings by that cost and take the cheapest, rather than
-discarding everything with `cost > 0`. FL-10 exists so this advertised recipe is
-defended by a test and not just by prose.
+**Relaxing, once nothing is clean** — `canFloat` takes the least-priority
+criterion still enforced, which is how FIDE walks down the sequence:
+
+```ts
+canFloat(dir, history, "C17"); // all four enforced — the default, === protection 2
+canFloat(dir, history, "C16"); // C.17 given up
+canFloat(dir, history, "C15"); // === protection 1
+canFloat(dir, history, "C14"); // only the costliest left
+canFloat(dir, history, 0);     // nothing enforced
+```
+
+The numeric form reaches only three of those five steps: a round count cannot
+split a round, so it cannot enforce C.14 while tolerating C.15. It stays
+supported, and stays the right tool when the window itself is what varies.
 
 ## History encoding
 
@@ -134,9 +149,11 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 | Status | Count | IDs |
 |---|---|---|
-| ✅ correct and covered | 17 | FL-1…FL-17 |
+| ✅ correct and covered | 18 | FL-1…FL-17, FL-20 |
 | ⚠️ caller contract, no in-library check | 1 | FL-19 |
 | ⛔ out of scope | 1 | FL-18 |
+
+Twenty expectations, one unverifiable.
 
 **One expectation cannot be tested at all.** C.14/C.16 bind the resident
 downfloater and C.15/C.17 the MDP opponent, so a compliant engine tests the
