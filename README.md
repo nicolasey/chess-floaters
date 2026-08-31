@@ -64,6 +64,18 @@ never read, and so never validated.
 enum Floater { ASC = "↑", DESC = "↓" }
 ```
 
+### `recordFor({ playerScore, opponentScore }): FloatRecord`
+
+Builds the record for a round that was played, applying FIDE art. 1.4: the
+higher-scored player downfloats, the lower upfloats, equal scores float neither
+way. Pass the scores **as they stood when the round was paired**. Throws
+`RangeError` if either is not a finite, non-negative number — a score that is
+not a score must not read as "no float".
+
+Takes an object rather than two positional numbers on purpose: swapping the
+arguments would otherwise produce the opposite float, confidently and in
+silence.
+
 ### `Unplayed`
 
 ```ts
@@ -84,9 +96,7 @@ library. Rounds that were not played are recorded as such:
 
 | That round | Record |
 |---|---|
-| Played a lower-scored opponent | `{ floater: Floater.DESC }` |
-| Played a higher-scored opponent | `{ floater: Floater.ASC }` |
-| Played someone on the same score | `{ floater: null }` |
+| Played an opponent, any score | `recordFor({ playerScore, opponentScore })` |
 | Pairing-allocated bye, half-point bye | `{ floater: Unplayed.BYE }` |
 | Unplayed, scoring what a loss scores (forfeit, absence, zero-point bye) | `{ floater: Unplayed.FORFEIT }` |
 

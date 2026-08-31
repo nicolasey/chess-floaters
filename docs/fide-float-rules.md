@@ -45,7 +45,7 @@ The four criteria the library exists to serve, verbatim:
 
 | ID | Art. | Rule | Expected behaviour | Test | Status |
 |---|---|---|---|---|---|
-| FL-1 | 1.4 | Of two different-scored players who meet, the higher ranked downfloats, the lower upfloats | caller derives the direction | n/a | ⚠️ caller contract |
+| FL-1 | 1.4 | Of two different-scored players who meet, the higher ranked downfloats, the lower upfloats | `recordFor` derives it from the two scores; equal scores float neither way | `FL-1:` ×4 | ✅ |
 | FL-2 | C.14 | A downfloat **the previous round** restricts a downfloat now | `[…, DESC]` → `false` | `FL-2:` | ✅ |
 | FL-3 | C.16 | A downfloat **two rounds before** restricts a downfloat now | `[…, DESC, null]` → `false` | `when_player_has_floatted_desc_lately`, `when_player_floated_like_boat` | ✅ |
 | FL-4 | C.15 | An upfloat **the previous round** restricts an upfloat now | `[…, ASC]` → `false` | `when_player_floated_like_boat`, `when_history_shorter_than_protection_window` | ✅ |
@@ -94,9 +94,9 @@ One record per round, played or not:
 
 | That round | Record |
 |---|---|
-| Played a lower-scored opponent | `{ floater: Floater.DESC }` |
-| Played a higher-scored opponent | `{ floater: Floater.ASC }` |
-| Played someone on the same score | `{ floater: null }` |
+| Played a lower-scored opponent | `recordFor({ playerScore, opponentScore })` → `DESC` |
+| Played a higher-scored opponent | `recordFor({ playerScore, opponentScore })` → `ASC` |
+| Played someone on the same score | `recordFor({ playerScore, opponentScore })` → `null` |
 | Pairing-allocated bye, half-point bye | `{ floater: Unplayed.BYE }` |
 | Unplayed, scoring what a loss scores (forfeit, absence, zero-point bye) | `{ floater: Unplayed.FORFEIT }` |
 
@@ -106,7 +106,7 @@ scores what a loss scores, so art. 1.4 makes it a `FORFEIT` here whatever the
 pairing sheet calls it.
 
 Recording the round as it happened, rather than translating it to a direction,
-is what moves FL-11 and FL-12 out of the caller's hands. What stays there is
+is what moves FL-1, FL-11 and FL-12 out of the caller's hands. What stays there is
 chronological order and completeness: an array cannot prove it is sorted, and
 the library has no round number to check the entries against, so a round left
 out is invisible (FL-13).
@@ -134,15 +134,17 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 | Status | Count | IDs |
 |---|---|---|
-| ✅ correct and covered | 16 | FL-2…FL-17 |
-| ⚠️ caller contract, no in-library check | 2 | FL-1, FL-19 |
+| ✅ correct and covered | 17 | FL-1…FL-17 |
+| ⚠️ caller contract, no in-library check | 1 | FL-19 |
 | ⛔ out of scope | 1 | FL-18 |
 
-**Two expectations cannot be tested at all, and they share one cause:** this
-package sees a direction and one player's float history, never a pairing. It
-cannot check that the direction was derived from the right side of the pair
-(FL-1, FL-19). Those are caller contracts with no in-library check, written
-down rather than left looking covered.
+**One expectation cannot be tested at all.** C.14/C.16 bind the resident
+downfloater and C.15/C.17 the MDP opponent, so a compliant engine tests the
+higher-scored player for `DESC` and the lower one for `ASC`. `canFloat` sees a
+direction and one player's history, never a pairing, so it cannot notice a
+caller testing the wrong side — which fails permissively, like every other gap
+here. FL-19 is a caller contract with no in-library check, written down rather
+than left looking covered.
 
 FL-13 is a third contract of the same kind, kept in the ✅ column because the
 *shape* of its failure is pinned by a test — always permissive, never
