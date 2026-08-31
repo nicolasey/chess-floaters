@@ -1,0 +1,35 @@
+# Publishes to npmjs.com on release, using npm Trusted Publishing (OIDC).
+# No NPM_TOKEN secret: the repo must be registered as a trusted publisher at
+# https://www.npmjs.com/package/@nicolasey/chess-floaters/access
+# Provenance attestation is generated automatically.
+
+name: Publish to npm
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bun test
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest # trusted publishing needs npm >= 11.5.1
+      - run: npm publish
