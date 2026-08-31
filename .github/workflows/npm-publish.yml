@@ -27,9 +27,11 @@ jobs:
       id-token: write # required for OIDC trusted publishing
     steps:
       - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile # prepublishOnly builds dist/ with bun + tsc
       - run: npm install -g npm@latest # trusted publishing needs npm >= 11.5.1
       - run: npm publish
