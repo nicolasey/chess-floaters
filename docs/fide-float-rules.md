@@ -30,7 +30,8 @@ handbook before changing behaviour.
 | Upfloat | Given to the lower ranked of that pair (1.4) | `Floater.ASC` (`↑`) |
 | Downfloater | A player who remains unpaired in a bracket and is thus moved to the next one (1.4) | — the caller's bracket logic |
 | MDP | Moved-down player: one who remained unpaired after the previous bracket was paired | — the caller's bracket logic |
-| PAB | Pairing-allocated bye: no opponent, no colour, as many points as a win (1.5) | encode as `{ floater: Floater.DESC }` |
+| PAB | Pairing-allocated bye: no opponent, no colour, as many points as a win (1.5) | `Unplayed.BYE` |
+| Unplayed round | A round the player did not play, whatever the reason | `Unplayed.BYE` or `Unplayed.FORFEIT`, never omitted |
 | Protection window | The reach of C.14–C.17: the previous round and two rounds before | `protection`, default `2` |
 
 ## Float criteria — `canFloat`
@@ -85,9 +86,9 @@ So byes are downfloats, and the window counts **array slots, not round numbers**
 
 | ID | Art. | Rule | Expected behaviour | Test | Status |
 |---|---|---|---|---|---|
-| FL-11 | 1.4 | A PAB, or any unplayed round scoring above a loss, is a downfloat | push `{ floater: DESC }` | n/a | ⚠️ caller contract |
-| FL-12 | 1.4 | An unplayed round scoring what a loss scores is no float — but the round still happened | push `{ floater: null }`, never nothing | n/a | ⚠️ caller contract |
-| FL-13 | — | Getting FL-11/FL-12 wrong flips the verdict the **permissive** way, and is undetectable from in here | a dropped bye round turns a `false` into `true` | `FL-13:` | ⚠️ hazard pinned, not prevented |
+| FL-11 | 1.4 | A PAB, or any unplayed round scoring above a loss, is a downfloat | `Unplayed.BYE` restricts a downfloat, not an upfloat | `FL-11:` | ✅ |
+| FL-12 | 1.4 | An unplayed round scoring what a loss scores is no float — but the round still happened | `Unplayed.FORFEIT` restricts nothing, yet still holds its slot | `FL-12:` | ✅ |
+| FL-13 | — | An **omitted** round shifts the window, flips the verdict the permissive way, and is undetectable from in here | leaving a bye round out turns a `false` into `true` | `FL-13:` | ⚠️ hazard pinned, not prevented |
 
 One record per round, played or not:
 
@@ -96,8 +97,19 @@ One record per round, played or not:
 | Played a lower-scored opponent | `{ floater: Floater.DESC }` |
 | Played a higher-scored opponent | `{ floater: Floater.ASC }` |
 | Played someone on the same score | `{ floater: null }` |
-| Pairing-allocated bye, half-point bye | `{ floater: Floater.DESC }` |
-| Unplayed, scoring what a loss scores (forfeit, absence) | `{ floater: null }` |
+| Pairing-allocated bye, half-point bye | `{ floater: Unplayed.BYE }` |
+| Unplayed, scoring what a loss scores (forfeit, absence, zero-point bye) | `{ floater: Unplayed.FORFEIT }` |
+
+`Unplayed.BYE` resolves to a downfloat and `Unplayed.FORFEIT` to no float, both
+inside `canFloat`. The split is by **points, not by label**: a zero-point bye
+scores what a loss scores, so art. 1.4 makes it a `FORFEIT` here whatever the
+pairing sheet calls it.
+
+Recording the round as it happened, rather than translating it to a direction,
+is what moves FL-11 and FL-12 out of the caller's hands. What stays there is
+chronological order and completeness: an array cannot prove it is sorted, and
+the library has no round number to check the entries against, so a round left
+out is invisible (FL-13).
 
 ## Input validation
 
@@ -122,20 +134,21 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 | Status | Count | IDs |
 |---|---|---|
-| ✅ correct and covered | 14 | FL-2…FL-10, FL-13…FL-17 |
-| ⚠️ caller contract, no in-library check | 4 | FL-1, FL-11, FL-12, FL-19 |
+| ✅ correct and covered | 16 | FL-2…FL-17 |
+| ⚠️ caller contract, no in-library check | 2 | FL-1, FL-19 |
 | ⛔ out of scope | 1 | FL-18 |
 
-**Four expectations cannot be tested at all, and they share one cause:** this
-package sees a direction and one player's float history, never a pairing and
-never a round number. It cannot check that the direction was derived from the
-right side of the pair (FL-1, FL-19), nor that a round it was never handed
-existed (FL-11, FL-12). Those are caller contracts with no in-library check,
-written down rather than left looking covered.
+**Two expectations cannot be tested at all, and they share one cause:** this
+package sees a direction and one player's float history, never a pairing. It
+cannot check that the direction was derived from the right side of the pair
+(FL-1, FL-19). Those are caller contracts with no in-library check, written
+down rather than left looking covered.
 
-FL-13 is the closest this gets to defending them: it pins the *shape* of the
-failure — always permissive, never conservative — so the hazard is executable
-rather than a paragraph. It does not prevent it.
+FL-13 is a third contract of the same kind, kept in the ✅ column because the
+*shape* of its failure is pinned by a test — always permissive, never
+conservative — even though nothing prevents it. Recording a round is now the
+caller's only remaining encoding duty; getting the encoding itself right is the
+library's job since `Unplayed` landed.
 
 Every ID above must appear somewhere under `tests/`; the gate in
 `tests/fide-traceability.test.ts` fails the suite if one does not.
