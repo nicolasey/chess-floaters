@@ -1,8 +1,28 @@
 # chess-floaters
 
-A predicate over one player's float history, checked against FIDE (Dutch)
-C.04.3. Small surface, high precision cost: a wrong answer here becomes a
-non-compliant pairing in someone's tournament.
+## What this repo is for
+
+Three objectives, in priority order. Weigh every change against them.
+
+1. **Cover FIDE's float rules as completely and as readably as possible, on
+   behalf of a client Swiss pairing engine.** The engine owns brackets, scores
+   and pairings; this package owns one player's float history and nothing else.
+   Completeness is measured against the handbook, not against what feels done —
+   and where a rule cannot be covered from in here, say so rather than let it
+   look covered.
+2. **Assert that coverage in the documentation, efficiently and legibly.**
+   `docs/fide-float-rules.md` is the source of truth: every rule is a numbered
+   `FL-` expectation with the test that defends it, or a written reason why none
+   can exist. A claim of coverage with nothing behind it is worse than an
+   admitted gap.
+3. **Make it easy for any TypeScript developer to use.** Types that make the
+   wrong call unrepresentable, errors that name what is wrong, no FIDE
+   background required to read the README, and resolution that works under any
+   `moduleResolution`.
+
+Small surface, high precision cost: a wrong answer here becomes a non-compliant
+pairing in someone's tournament. Objective 1 is why the guards throw instead of
+guessing, objective 2 is why the rule below exists.
 
 ## Every PR gets a documentation re-read
 
