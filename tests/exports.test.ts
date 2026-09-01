@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
-import * as api from "../index";
+import * as api from "../index.js";
 
 /**
  * The mechanical half of the documentation re-read in CLAUDE.md: every exported

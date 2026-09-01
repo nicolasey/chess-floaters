@@ -1,18 +1,19 @@
 # @nicolasey/chess-floaters
 
-Float restrictions for Swiss-system chess pairings: given one player's recent
-history, which FIDE (Dutch) criterion a downfloat or an upfloat would breach, and
-whether that matters at the strictness you are pairing at.
+Float restrictions for Swiss-system chess pairings, per the FIDE (Dutch) system.
+
+Your engine owns the brackets, the scores and the pairings. This package owns
+**floats**: given a player's recent history, which FIDE criterion a downfloat or
+an upfloat would engage, and how much it costs. It names all eight float
+criteria, C.14 through C.21.
 
 In a Swiss tournament, a player pulled into a higher score group floats **up**
-(`↑`), one pushed into a lower group floats **down** (`↓`). FIDE has eight
-criteria on repeating a float within the last two rounds, and **none of them
-forbids it**: C.14–C.17 are quality criteria, minimised in priority order and
-relaxed when no pairing satisfies them, while C.18–C.21 only order candidates by
-how far the player was moved. That is why a legal pairing always exists.
-
-This package answers six of the eight, one player at a time. The bracket logic
-is yours.
+(`↑`), one pushed into a lower group floats **down** (`↓`). FIDE restricts
+repeating a float within the last two rounds, but **never forbids it**:
+C.14–C.17 are quality criteria, relaxed when no pairing satisfies them, and
+C.18–C.21 only order candidates by how far the player was moved. That is why a
+legal pairing always exists — and why nothing here returns a verdict you cannot
+overrule.
 
 ## Install
 
@@ -22,156 +23,83 @@ bun add @nicolasey/chess-floaters
 npm install @nicolasey/chess-floaters
 ```
 
-> Ships compiled ESM in `dist/` with declaration files, resolved through the
-> `exports` map. Works with Bun, Node and any bundler, including
-> `moduleResolution: "node16"`/`"nodenext"`.
+> Ships compiled ESM in `dist/` with declaration files. Works with Bun, Node and
+> any bundler, including `moduleResolution: "node16"`/`"nodenext"`.
 
-## Usage
+## Quick start
+
+A pairing engine makes two decisions where floats matter. Each has one call.
+
+### 1. "Which resident do I leave unpaired?"
+
+That player will be moved down a bracket, so they downfloat. C.14 and C.16 apply.
 
 ```ts
-import {
-  canFloat,
-  floatCriterion,
-  recordFor,
-  Floater,
-  Unplayed,
-  type FloatRecord,
-} from "@nicolasey/chess-floaters";
+import { canFloat, floatCriterion, Floater } from "@nicolasey/chess-floaters";
 
-// Oldest round first, most recent last. One entry per round, played or not.
+canFloat(Floater.DESC, player.floatHistory);       // false — restricted
+floatCriterion(Floater.DESC, player.floatHistory); // "C14" — by which criterion
+```
+
+Prefer `floatCriterion` when you have several candidates: it tells you *which*
+criterion is at stake, so you can pick the cheapest instead of discarding every
+candidate that fails. `canFloat` is the yes/no form, useful once you have fixed
+how strict to be.
+
+### 2. "Is this proposed pairing costly?"
+
+Pass both players. The package works out who floats which way — art. 1.4 makes
+the higher score downfloat and the lower upfloat — so you never pick a side or a
+direction yourself.
+
+```ts
+import { floatCostOfPair } from "@nicolasey/chess-floaters";
+
+floatCostOfPair({
+  a: { score: 3, history: mdp.floatHistory },
+  b: { score: 2, history: resident.floatHistory },
+});
+// {
+//   scoreDifference: 1,
+//   downfloater: { player: "a", direction: "↓", criteria: ["C18"] },
+//   upfloater:   { player: "b", direction: "↑", criteria: ["C15", "C19"] },
+// }
+```
+
+The two sides answer to different criteria, which is the part most easily got
+backwards:
+
+| Side | Criteria | Why |
+|---|---|---|
+| downfloater | C.18, C.20 | it is a moved-down player; **no count criterion covers it** |
+| upfloater | C.15, C.17 by count, plus C.19, C.21 by score difference | it is an MDP opponent, and both families engage at once |
+
+C.14 and C.16 never appear here. They bind a resident being left *unpaired*,
+which is not a pairing at all — decision 1, not decision 2.
+
+### Ranking candidates
+
+FIDE compares whole candidate pairings: the counts in criterion order first
+(C.14, then C.15, C.16, C.17), then the score-difference sequences taken in
+descending order and compared element by element. That comparison needs every
+pairing in a bracket at once, so it is yours to make. This package gives you the
+per-pair costs it operates on: which criteria, and the score difference.
+
+## Building the history
+
+Every call takes a `FloatRecord[]`, chronological and oldest first, with **one
+entry per round played or not**. An omitted round shifts the two-round lookback
+window and cannot be detected from inside the library.
+
+```ts
+import { recordFor, Unplayed, type FloatRecord } from "@nicolasey/chess-floaters";
+
 const history: FloatRecord[] = [
   recordFor({ playerScore: 0, opponentScore: 0 }), // round 1: level pairing
-  { floater: Unplayed.BYE },                       // round 2: bye — a downfloat
-  recordFor({ playerScore: 2, opponentScore: 2 }), // round 3: level again
+  recordFor({ playerScore: 1, opponentScore: 0 }), // round 2: beat a lower score
+  { floater: Unplayed.BYE },                       // round 3: bye
 ];
-
-canFloat(Floater.DESC, history); // false — that bye was a downfloat, two rounds back
-canFloat(Floater.ASC, history);  // true
-
-floatCriterion(Floater.DESC, history); // "C16" — which criterion is at stake
-
-// The same history, asked about a player already moved down a bracket:
-floatCriterion(Floater.DESC, history, "mdp"); // "C20"
 ```
-
-## API
-
-### `canFloat(direction, playerHistory, protection?): boolean`
-
-| Param | Type | Description |
-|---|---|---|
-| `direction` | `Floater` | Direction to test: `Floater.ASC` (`↑`) or `Floater.DESC` (`↓`) |
-| `playerHistory` | `FloatRecord[]` | Chronological history, oldest first, one entry per round played or not |
-| `protection` | `FloatProtection` | How strict to be. Default `2` |
-
-Returns `true` if the float is permitted at that strictness — either the player
-did not float in that direction inside the window, or the criterion it would
-breach is one you are no longer enforcing.
-
-Throws `RangeError` if `protection` is neither a non-negative integer nor an
-*enforceable* criterion — `"C18"` and `"C20"` are known but not enforceable, see
-below — and `TypeError` if a record inside the window is missing or has
-a `floater` that is neither a `Floater`, an `Unplayed` nor `null`. Nothing
-unusable may silently read as "float allowed". Records older than the window are
-never read, and so never validated.
-
-```ts
-const floated: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
-
-canFloat(Floater.DESC, floated);    // false — downfloated last round
-canFloat(Floater.DESC, floated, 0); // true  — protection disabled
-```
-
-### `floatCriterion(direction, playerHistory, role?): FloatCriterion | null`
-
-Names the criterion a float in that direction would breach, or `null` if none
-would be. Rank candidate pairings by what
-comes back and take the cheapest, rather than discarding everything that fails:
-FIDE minimises these in priority order, so an engine that treats `false` as
-"forbidden" can dead-end on a bracket FIDE calls pairable.
-
-```ts
-const lastRound: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
-const twoBack: FloatRecord[] = [{ floater: Floater.DESC }, { floater: null }];
-
-floatCriterion(Floater.DESC, lastRound); // "C14" — the costliest
-floatCriterion(Floater.DESC, twoBack);   // "C16" — same direction, cheaper
-floatCriterion(Floater.ASC, lastRound);  // null  — direction-matched
-```
-
-A downfloat answers to a different criterion depending on `role`, which defaults
-to `"resident"`. C.14/C.16 are about a resident left unpaired; once that same
-player has moved down, its downfloat history answers to C.18/C.20 instead — the
-only criteria covering it, since no *count* criterion does:
-
-```ts
-floatCriterion(Floater.DESC, lastRound, "mdp"); // "C18"
-floatCriterion(Floater.DESC, twoBack, "mdp");   // "C20"
-```
-
-An upfloat takes no role: an MDP opponent is always a resident, and an MDP
-outscores its bracket, so it downfloats whenever paired there and can never
-upfloat. Asking anyway throws rather than returning a plausible `"C15"`.
-
-`canFloat` also takes a criterion in place of a round count, as the
-least-priority one still enforced. That is how FIDE relaxes them, and it reaches
-two steps a round count cannot — a count cannot split a round, so it cannot
-enforce C.14 while tolerating C.15:
-
-```ts
-canFloat(Floater.DESC, lastRound, "C17"); // false — all four enforced, === protection 2
-canFloat(Floater.DESC, lastRound, "C16"); // false
-canFloat(Floater.DESC, lastRound, "C15"); // false — === protection 1
-canFloat(Floater.DESC, lastRound, "C14"); // false — only the costliest left, and this is it
-canFloat(Floater.ASC, twoBack, "C16");    // true  — C.17 given up
-```
-
-### `recordFor({ playerScore, opponentScore }): FloatRecord`
-
-Builds the record for a round that was **played**, applying FIDE art. 1.4: the
-higher-scored player downfloats, the lower upfloats, equal scores float neither
-way. Pass the scores as they stood when the round was paired.
-
-Throws `RangeError` if either is not a finite, non-negative number — a score
-that is not a score must not read as "no float". Takes an object rather than two
-positional numbers on purpose: swapping them would otherwise produce the
-opposite float, confidently and in silence.
-
-```ts
-recordFor({ playerScore: 2.5, opponentScore: 2 }); // { floater: Floater.DESC }
-recordFor({ playerScore: 2, opponentScore: 2.5 }); // { floater: Floater.ASC }
-recordFor({ playerScore: 3, opponentScore: 3 });   // { floater: null }
-```
-
-### `Floater`
-
-```ts
-enum Floater { ASC = "↑", DESC = "↓" }
-```
-
-### `Unplayed`
-
-```ts
-enum Unplayed { BYE = "BYE", FORFEIT = "FORFEIT" }
-```
-
-Rounds that were not played are recorded as these, never omitted. `BYE` counts
-as a downfloat and `FORFEIT` as no float, per FIDE art. 1.4 — the library
-applies that itself, so record the round as it happened rather than translating
-it. The split is by **points, not by label**: a zero-point bye scores what a
-loss scores, so it is a `FORFEIT` here.
-
-### `FloatRecord`
-
-```ts
-type FloatRecord = { floater: Floater | Unplayed | null };
-```
-
-Your own round objects can extend it — only `floater` is read.
-
-Records must be chronological, oldest first, with **no round left out** — an
-omitted round shifts the lookback window and cannot be detected from inside the
-library.
 
 | That round | Record |
 |---|---|
@@ -179,57 +107,125 @@ library.
 | Pairing-allocated bye, half-point bye | `{ floater: Unplayed.BYE }` |
 | Unplayed, scoring what a loss scores (forfeit, absence, zero-point bye) | `{ floater: Unplayed.FORFEIT }` |
 
-### `FloatCriterion` and `FloatProtection`
+`Unplayed.BYE` counts as a downfloat and `Unplayed.FORFEIT` as no float, per
+FIDE art. 1.4 — the library applies that, so record the round as it happened
+rather than translating it. The split is by **points, not by label**: a
+zero-point bye scores what a loss scores, so it is a `FORFEIT` here.
+
+Your own round objects can extend `FloatRecord` — only `floater` is read.
+
+## API
+
+### `floatCostOfPair({ a, b }): PairFloats`
+
+Every float criterion a proposed pairing engages, for both players. Each side is
+`{ score, history }`.
+
+Returns `scoreDifference` — `|a.score - b.score|`, the size of the float and the
+key C.18–C.21 order by — plus a `downfloater` and an `upfloater`, each naming
+which of the two arguments it is, its direction, and its criteria. Equal scores
+float neither way: `scoreDifference` is `0` and both sides are `null`.
+
+### `floatCriterion(direction, playerHistory, role?): FloatCriterion | null`
+
+Names the criterion a float in that direction would engage, or `null` if none
+would. `role` defaults to `"resident"`.
 
 ```ts
-type FloatCriterion = "C14" | "C15" | "C16" | "C17" | "C18" | "C20";
-type EnforceableCriterion = Exclude<FloatCriterion, "C18" | "C20">;
-type FloatProtection = number | EnforceableCriterion;
-type PlayerRole = "resident" | "mdp";
+const lastRound = [{ floater: null }, { floater: Floater.DESC }];
+const twoBack = [{ floater: Floater.DESC }, { floater: null }];
+const upfloated = [{ floater: null }, { floater: Floater.ASC }];
+
+floatCriterion(Floater.DESC, lastRound);        // "C14" — resident left unpaired
+floatCriterion(Floater.DESC, twoBack);          // "C16" — same, cheaper
+floatCriterion(Floater.DESC, lastRound, "mdp"); // "C18" — same history, moved down
+floatCriterion(Floater.ASC, upfloated);         // "C15" — an MDP opponent
+floatCriterion(Floater.ASC, lastRound);         // null  — direction-matched
 ```
 
-Ordered as FIDE ranks the criteria: C.14 is the costliest to breach, C.20 the
-cheapest. As a `protection` value a criterion means "the least-priority one
-still enforced"; as a number, `protection` is a count of recent rounds to scan,
-and `0` disables the check.
+An upfloat takes no role: an MDP opponent is always a resident, and an MDP
+outscores its bracket, so it downfloats whenever paired there and can never
+upfloat. Asking anyway throws rather than returning a plausible `"C15"`.
 
-`canFloat` accepts only the **enforceable** four. C.18 and C.20 minimise score
-differences — they order a bucket rather than refuse a pairing, so there is no
-threshold to set them at, and accepting one would turn an ordering criterion
-into a prohibition. `floatCriterion` names them; your engine orders that bucket
-by score difference.
+### `canFloat(direction, playerHistory, protection?): boolean`
 
-## Which criterion binds whom
+`true` if the float is permitted at that strictness — either the player did not
+float that way inside the window, or the criterion it would engage is one you no
+longer enforce.
 
-The downfloat and upfloat criteria attach to two different decisions in bracket
-pairing, not to the two ends of one pairing:
+`protection` is how strict to be, and defaults to `2`:
 
-| Decision | Player to test | Call |
-|---|---|---|
-| Which resident do I leave unpaired, to move down a bracket? | that resident | `canFloat(Floater.DESC, …)` — C.14, C.16 |
-| Which resident do I pair with a moved-down player? | that resident | `canFloat(Floater.ASC, …)` — C.15, C.17 |
-| Which MDP do I pair here, given it already downfloated? | that MDP | `floatCriterion(Floater.DESC, …, "mdp")` — C.18, C.20 |
+```ts
+// twoBack: downfloated two rounds ago, nothing since.
+canFloat(Floater.DESC, twoBack);        // false — default 2, C.16 reaches it
+canFloat(Floater.DESC, twoBack, 1);     // true  — only look back one round
+canFloat(Floater.DESC, twoBack, 0);     // true  — disabled
+canFloat(Floater.DESC, twoBack, "C16"); // false — enforced down to C.16
+canFloat(Floater.DESC, twoBack, "C15"); // true  — C.16 given up, same as 1
+```
 
-The first two are about residents in two different roles, and are not the two
-ends of one pairing — there is deliberately no pair-level helper, since a
-`canPairFloat(higher, lower)` would encode a rule FIDE does not state.
+A criterion means "the least-priority one still enforced", which is how FIDE
+relaxes them. It reaches two steps a round count cannot: a count cannot split a
+round, so it cannot enforce C.14 while tolerating C.15.
 
-The third is the same player as the first, one step later: a resident left
-unpaired becomes the next bracket's MDP within the same round. Same history,
-same question — C.14 while being left over, C.18 once arrived. That is why the
-criterion cannot be named without the role. See
-[the traceability doc](./docs/fide-float-rules.md) for the article references.
+Only C.14–C.17 are accepted. C.18–C.21 order a bucket rather than refuse a
+pairing, so there is no threshold to set them at — ask `floatCostOfPair` or
+`floatCriterion` for those.
+
+### `recordFor({ playerScore, opponentScore }): FloatRecord`
+
+The record for a round that was **played**, per FIDE art. 1.4: the higher-scored
+player downfloats, the lower upfloats, equal scores float neither way. Pass the
+scores as they stood when the round was paired.
+
+Takes an object rather than two positional numbers on purpose: swapping them
+would otherwise produce the opposite float, confidently and in silence.
+
+### Errors
+
+Nothing unusable is allowed to read as "float allowed":
+
+| Thrown | When |
+|---|---|
+| `RangeError` | a score that is not finite and non-negative; a `protection` that is neither a non-negative integer nor an enforceable criterion; an unknown `role`; an MDP asked about an upfloat |
+| `TypeError` | a record inside the lookback window that is missing, or whose `floater` is neither a `Floater`, an `Unplayed` nor `null` |
+
+Records older than the window are never read, and so never validated.
+
+### Types
+
+```ts
+enum Floater { ASC = "↑", DESC = "↓" }
+enum Unplayed { BYE = "BYE", FORFEIT = "FORFEIT" }
+
+type FloatRecord = { floater: Floater | Unplayed | null };
+type FloatCriterion = "C14" | "C15" | "C16" | "C17" | "C18" | "C19" | "C20" | "C21";
+type EnforceableCriterion = Extract<FloatCriterion, "C14" | "C15" | "C16" | "C17">;
+type FloatProtection = number | EnforceableCriterion;
+type PlayerRole = "resident" | "mdp";
+type PairCandidate = { score: number; history: FloatRecord[] };
+type FloatSide = { player: "a" | "b"; direction: Floater; criteria: FloatCriterion[] };
+type PairFloats = {
+  scoreDifference: number;
+  downfloater: FloatSide | null;
+  upfloater: FloatSide | null;
+};
+```
+
+`FloatCriterion` is ordered as FIDE ranks the criteria: C.14 is the costliest to
+engage, C.21 the cheapest.
 
 ## FIDE compliance
 
-This package answers six of FIDE's eight float criteria: C.14–C.17 in full, and
-C.18/C.20 as far as naming them goes. C.19 and C.21 are out of scope — their
-history question is the one C.15/C.17 already answer, and all that is left of
-them is a sort key made of score gaps this package never sees.
+All eight float criteria are named. What stays out is the comparison *between*
+candidate pairings, which needs a whole bracket at once.
 
-Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before building a
-pairing engine on it: every rule is turned into a numbered expectation with the
-test that defends it, or a note saying why none can.
+Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before building on
+this: every rule is a numbered expectation with the test that defends it, or a
+written reason why none can exist.
+
+Reference: [FIDE Handbook C.04.3](https://handbook.fide.com/chapter/C0403202602),
+revision effective 1 February 2026.
 
 ## Development
 
