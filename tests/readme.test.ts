@@ -26,6 +26,7 @@ test("README: usage", () => {
   expect(canFloat(Floater.DESC, history)).toBeFalse();
   expect(canFloat(Floater.ASC, history)).toBeTrue();
   expect(floatCriterion(Floater.DESC, history)).toBe("C16");
+  expect(floatCriterion(Floater.DESC, history, "mdp")).toBe("C20");
 });
 
 test("README: canFloat", () => {

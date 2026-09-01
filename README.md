@@ -1,16 +1,18 @@
 # @nicolasey/chess-floaters
 
-Float restrictions for Swiss-system chess pairings, per FIDE (Dutch) criteria
-C.14–C.17: given one player's recent history, which criterion a downfloat or an
-upfloat would breach, and whether that matters at the strictness you are pairing
-at.
+Float restrictions for Swiss-system chess pairings: given one player's recent
+history, which FIDE (Dutch) criterion a downfloat or an upfloat would breach, and
+whether that matters at the strictness you are pairing at.
 
 In a Swiss tournament, a player pulled into a higher score group floats **up**
-(`↑`), one pushed into a lower group floats **down** (`↓`). FIDE restricts
-repeating the same direction within the last two rounds — it does not *forbid*
-it. These are quality criteria, minimised in priority order and relaxed when no
-pairing satisfies them, which is why a legal pairing always exists. This package
-answers for one player at a time; the bracket logic is yours.
+(`↑`), one pushed into a lower group floats **down** (`↓`). FIDE has eight
+criteria on repeating a float within the last two rounds, and **none of them
+forbids it**: C.14–C.17 are quality criteria, minimised in priority order and
+relaxed when no pairing satisfies them, while C.18–C.21 only order candidates by
+how far the player was moved. That is why a legal pairing always exists.
+
+This package answers six of the eight, one player at a time. The bracket logic
+is yours.
 
 ## Install
 
@@ -47,6 +49,9 @@ canFloat(Floater.DESC, history); // false — that bye was a downfloat, two roun
 canFloat(Floater.ASC, history);  // true
 
 floatCriterion(Floater.DESC, history); // "C16" — which criterion is at stake
+
+// The same history, asked about a player already moved down a bracket:
+floatCriterion(Floater.DESC, history, "mdp"); // "C20"
 ```
 
 ## API
@@ -63,8 +68,9 @@ Returns `true` if the float is permitted at that strictness — either the playe
 did not float in that direction inside the window, or the criterion it would
 breach is one you are no longer enforcing.
 
-Throws `RangeError` if `protection` is neither a non-negative integer nor a
-known criterion, and `TypeError` if a record inside the window is missing or has
+Throws `RangeError` if `protection` is neither a non-negative integer nor an
+*enforceable* criterion — `"C18"` and `"C20"` are known but not enforceable, see
+below — and `TypeError` if a record inside the window is missing or has
 a `floater` that is neither a `Floater`, an `Unplayed` nor `null`. Nothing
 unusable may silently read as "float allowed". Records older than the window are
 never read, and so never validated.
@@ -219,9 +225,11 @@ criterion cannot be named without the role. See
 This package answers six of FIDE's eight float criteria: C.14–C.17 in full, and
 C.18/C.20 as far as naming them goes. C.19 and C.21 are out of scope — their
 history question is the one C.15/C.17 already answer, and all that is left of
-them is a sort key made of score gaps this package never sees. Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before
-building a pairing engine on it: every rule is turned into a numbered
-expectation with the test that defends it, or a note saying why none can.
+them is a sort key made of score gaps this package never sees.
+
+Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before building a
+pairing engine on it: every rule is turned into a numbered expectation with the
+test that defends it, or a note saying why none can.
 
 ## Development
 
