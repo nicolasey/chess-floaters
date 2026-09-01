@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
 import type { FloatRecord } from "../src/floater.types";
 import { Floater, Unplayed } from "../src/floater.enum";
-import { canFloat } from "../src/floater-checker";
+import { canFloat, floatCriterion } from "../src/floater-checker";
 
 // FL-5, FL-7
 test("when_player_has_floatted_asc", () => {
@@ -190,41 +190,6 @@ test("FL-2: a_downfloat_in_the_previous_round_blocks_a_downfloat", () => {
   expect(canFloat(Floater.ASC, history)).toBeTrue();
 });
 
-// FL-10 — C.14–C.17 are quality criteria, minimised in priority order, so the
-// docs tell callers to rank candidates by cost instead of filtering on the
-// boolean. That recipe is advertised; without this it is not defended.
-const floatCost = (direction: Floater, history: FloatRecord[]) =>
-  canFloat(direction, history, 1) ? (canFloat(direction, history, 2) ? 0 : 1) : 2;
-
-test("FL-10: the_documented_cost_recipe_ranks_the_four_float_criteria", () => {
-  const clean: FloatRecord[] = [
-    { floater: Floater.DESC }, // three rounds back: outside the window
-    { floater: null },
-    { floater: null },
-  ];
-  const twoBack: FloatRecord[] = [
-    { floater: null },
-    { floater: Floater.DESC },
-    { floater: null },
-  ];
-  const previous: FloatRecord[] = [
-    { floater: null },
-    { floater: null },
-    { floater: Floater.DESC },
-  ];
-
-  expect(floatCost(Floater.DESC, clean)).toBe(0);
-  expect(floatCost(Floater.DESC, twoBack)).toBe(1); // C.16
-  expect(floatCost(Floater.DESC, previous)).toBe(2); // C.14 outranks C.16
-
-  // Same ladder one notch down the priority list, C.17 then C.15.
-  const upTwoBack = twoBack.map((r) => (r.floater ? { floater: Floater.ASC } : r));
-  const upPrevious = previous.map((r) => (r.floater ? { floater: Floater.ASC } : r));
-
-  expect(floatCost(Floater.ASC, upTwoBack)).toBe(1);
-  expect(floatCost(Floater.ASC, upPrevious)).toBe(2);
-});
-
 // FL-11 — art. 1.4: a bye, or any unplayed round scoring above a loss, is a
 // downfloat. The library resolves that itself; callers record the round as it
 // happened rather than translating it to a direction.
@@ -274,4 +239,71 @@ test("FL-13: an_omitted_round_is_undetectable_and_reads_permissively", () => {
   const roundOmitted: FloatRecord[] = [{ floater: null }, { floater: null }];
 
   expect(canFloat(Floater.DESC, roundOmitted)).toBeTrue();
+});
+
+// FL-10 — C.14–C.17 are quality criteria, minimised in priority order, so an
+// engine needs to know *which* one a float would breach, not merely that one
+// would. Round distance is the outer key: C.14/C.15 both outrank C.16/C.17.
+test("FL-10: floatCriterion_names_the_criterion_a_float_would_breach", () => {
+  const previous = (floater: Floater): FloatRecord[] => [
+    { floater: null },
+    { floater },
+  ];
+  const twoBack = (floater: Floater): FloatRecord[] => [
+    { floater },
+    { floater: null },
+  ];
+
+  expect(floatCriterion(Floater.DESC, previous(Floater.DESC))).toBe("C14");
+  expect(floatCriterion(Floater.ASC, previous(Floater.ASC))).toBe("C15");
+  expect(floatCriterion(Floater.DESC, twoBack(Floater.DESC))).toBe("C16");
+  expect(floatCriterion(Floater.ASC, twoBack(Floater.ASC))).toBe("C17");
+
+  // Direction-matched and window-bounded, exactly as canFloat is.
+  expect(floatCriterion(Floater.ASC, previous(Floater.DESC))).toBeNull();
+  expect(
+    floatCriterion(Floater.DESC, [
+      { floater: Floater.DESC },
+      { floater: null },
+      { floater: null },
+    ]),
+  ).toBeNull();
+
+  // The nearest float wins: C.14 is reported over the C.16 behind it.
+  expect(
+    floatCriterion(Floater.DESC, [{ floater: Floater.DESC }, { floater: Unplayed.BYE }]),
+  ).toBe("C14");
+});
+
+// FL-20 — FIDE relaxes quality criteria one at a time down the priority order,
+// so every step of that sequence has to be expressible. A round count cannot
+// reach the two steps that split a round: enforcing C.14 while tolerating C.15.
+test("FL-20: canFloat_accepts_a_criterion_as_the_strictness_level", () => {
+  const downfloatedLastRound: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
+  const upfloatedLastRound: FloatRecord[] = [{ floater: null }, { floater: Floater.ASC }];
+
+  // "C17" enforces all four; "C15" enforces the previous-round pair.
+  expect(canFloat(Floater.DESC, downfloatedLastRound, "C17")).toBeFalse();
+  expect(canFloat(Floater.DESC, downfloatedLastRound, "C15")).toBeFalse();
+
+  // "C14" is the step a round count cannot express: downfloat repeats still
+  // forbidden, upfloat repeats already tolerated.
+  expect(canFloat(Floater.DESC, downfloatedLastRound, "C14")).toBeFalse();
+  expect(canFloat(Floater.ASC, upfloatedLastRound, "C14")).toBeTrue();
+  expect(canFloat(Floater.ASC, upfloatedLastRound, "C15")).toBeFalse();
+
+  // And the two levels that do have a numeric equivalent agree with it.
+  const twoBack: FloatRecord[] = [{ floater: Floater.DESC }, { floater: null }];
+  expect(canFloat(Floater.DESC, twoBack, "C17")).toBe(canFloat(Floater.DESC, twoBack, 2));
+  expect(canFloat(Floater.DESC, twoBack, "C15")).toBe(canFloat(Floater.DESC, twoBack, 1));
+});
+
+// FL-20 — an unknown level must not read as a blanket verdict either way.
+test("FL-20: an_unknown_strictness_level_is_refused", () => {
+  const history: FloatRecord[] = [{ floater: Floater.DESC }];
+
+  // @ts-expect-error — the type forbids it; the guard is for untyped callers.
+  expect(() => canFloat(Floater.DESC, history, "C99")).toThrow(RangeError);
+  // @ts-expect-error
+  expect(() => canFloat(Floater.DESC, history, "all")).toThrow(RangeError);
 });
