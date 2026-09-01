@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test";
-import type { FloatRecord } from "../src/floater.types";
-import { Floater, Unplayed } from "../src/floater.enum";
-import { canFloat, floatCriterion } from "../src/floater-checker";
-import { recordFor } from "../src/float-record";
+import type { FloatRecord } from "../src/floater.types.js";
+import { Floater, Unplayed } from "../src/floater.enum.js";
+import { canFloat, floatCriterion } from "../src/floater-checker.js";
+import { recordFor } from "../src/float-record.js";
 
 /**
  * Mirrors every example in README.md, so a claimed output has to be true.

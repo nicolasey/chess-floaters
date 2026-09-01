@@ -14,3 +14,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
       - run: bun test
+      # The published artifact is what consumers resolve, and noEmit never
+      # produces it. A declaration emit that breaks would otherwise surface at
+      # publish time.
+      - run: bun run build

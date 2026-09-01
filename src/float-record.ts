@@ -1,5 +1,5 @@
-import type { FloatRecord } from "./floater.types";
-import { Floater } from "./floater.enum";
+import type { FloatRecord } from "./floater.types.js";
+import { Floater } from "./floater.enum.js";
 
 /**
  * Builds the history record for a round the player actually played.
