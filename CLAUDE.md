@@ -5,11 +5,15 @@
 Three objectives, in priority order. Weigh every change against them.
 
 1. **Cover FIDE's float rules as completely and as readably as possible, on
-   behalf of a client Swiss pairing engine.** The engine owns brackets, scores
-   and pairings; this package owns one player's float history and nothing else.
-   Completeness is measured against the handbook, not against what feels done —
-   and where a rule cannot be covered from in here, say so rather than let it
-   look covered.
+   behalf of a client Swiss pairing engine.** The scope limit is the *subject* —
+   floaters — not the data. This package may ask for anything a float decision
+   needs, scores included; what it must not do is take over bracket building or
+   pairing. Completeness is measured against the handbook, not against what
+   feels done, and where a rule genuinely cannot be covered from in here, say so
+   rather than let it look covered.
+
+   Corollary: "we don't see that data" is never a reason to declare a float rule
+   out of scope. Ask for the data.
 2. **Assert that coverage in the documentation, efficiently and legibly.**
    `docs/fide-float-rules.md` is the source of truth: every rule is a numbered
    `FL-` expectation with the test that defends it, or a written reason why none
