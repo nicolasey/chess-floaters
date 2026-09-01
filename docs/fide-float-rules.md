@@ -58,7 +58,10 @@ The four criteria the library exists to serve, verbatim:
 | FL-21 | C.14/C.16 vs C.18/C.20 | A downfloat answers to a different criterion depending on the player's role; an MDP cannot upfloat at all | `role: "mdp"` yields C.18/C.20; `ASC` with `role: "mdp"` throws | `FL-21:` ×2 | ✅ |
 | FL-22 | C.18, C.20 | These order a bucket by score difference and never refuse a pairing, so they can be named but not enforced | `canFloat(…, "C18")` throws; `floatCriterion` returns it | `FL-22:` | ✅ |
 | FL-20 | C.14–C.17 | Quality criteria are relaxed one at a time down the priority order, so every step must be expressible | `canFloat(dir, history, "C14")` enforces C.14 while tolerating C.15 | `FL-20:` ×2 | ✅ |
-| FL-19 | C.14/C.16 vs C.15/C.17 | The downfloat and upfloat criteria attach to two **different decisions**, not to the two sides of one pair | test `DESC` on the resident you are about to leave unpaired, `ASC` on the resident you are about to pair with an MDP | n/a | ⚠️ caller contract |
+| FL-19 | C.14/C.16 vs C.15/C.17 | The downfloat and upfloat criteria attach to two **different decisions**, not to the two sides of one pair | `floatCriterion` for the resident left unpaired; `floatCostOfPair` for a proposed pairing, which picks the sides itself | `FL-23:` ×2 | ✅ |
+| FL-23 | 1.4 | A proposed pairing decides who floats which way: higher score down, lower up, equal scores neither | derived from the pair, not from a direction the caller passed; symmetric in argument order | `FL-23:` ×2 | ✅ |
+| FL-24 | C.18–C.21 | The score difference of a float is the absolute gap between the two paired players | `\|a.score - b.score\|`, symmetric, 0 when nobody floats | `FL-24:` ×2 | ✅ |
+| FL-25 | C.15/C.17, C.18–C.21 | The two sides of a pair answer to different families: the downfloater to C.18/C.20 alone, the upfloater to a count **and** its score-difference shadow | `["C18"]` against `["C15", "C19"]` | `FL-25:` ×2 | ✅ |
 
 ### Which criterion binds whom
 
@@ -67,11 +70,10 @@ everything else here. Art. 1.3.2 splits a bracket into **residents**, who come
 from its own scoregroup, and **MDPs**, who "remained unpaired after the pairing
 of the previous bracket" and arrive from above.
 
-| Decision the engine is making | Player to test | Direction | Criteria |
-|---|---|---|---|
-| Which resident do I leave unpaired, to move down to the next bracket? | that resident, `role: "resident"` | `DESC` | C.14, C.16 |
-| Which resident do I pair with this MDP? | that resident | `ASC` | C.15, C.17 |
-| Which MDP do I pair here, given it already downfloated? | that MDP, `role: "mdp"` | `DESC` | C.18, C.20 |
+| Decision the engine is making | Call | Criteria |
+|---|---|---|
+| Which resident do I leave unpaired, to move down to the next bracket? | `floatCriterion(DESC, resident.history)` | C.14, C.16 |
+| Is this proposed pairing costly? | `floatCostOfPair({ a, b })` | C.15, C.17 for the upfloater, plus C.19, C.21; C.18, C.20 for the downfloater |
 
 The first two are about **residents**, in two different roles — one floats down
 by being left over, the other floats up by being paired with someone from above.
@@ -170,7 +172,7 @@ out is invisible (FL-13).
 
 | ID | Art. | Rule | Why not here | Status |
 |---|---|---|---|---|
-| FL-18 | C.19, C.21 | Order MDP opponents who repeated an upfloat by score difference, once C.15/C.17 are equal | same population and lookback as C.15/C.17, which are already answered — only the sort key is missing, and it is a score gap this package never sees | ⛔ |
+| FL-18 | C.14–C.21 | Comparing whole candidate pairings — counts in order, then score-difference sequences taken descending — is the engine's, not one player's | needs every pairing in the bracket at once; this package answers per player and per pair | ⛔ |
 
 Also out of scope, and not given IDs: C.1–C.13 (rematches, colour preferences,
 the PAB assignee, bracket completion, topscorers), acceleration (C.04.5 Baku),
@@ -180,27 +182,32 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 | Status | Count | IDs |
 |---|---|---|
-| ✅ correct and covered | 20 | FL-1…FL-17, FL-20…FL-22 |
-| ⚠️ caller contract, no in-library check | 1 | FL-19 |
+| ✅ correct and covered | 24 | FL-1…FL-17, FL-19…FL-25 |
 | ⛔ out of scope | 1 | FL-18 |
 
-Twenty-two expectations, one unverifiable.
+Twenty-five expectations, all covered but one.
 
-Six of FIDE's eight float criteria are covered: C.14–C.17 in full, C.18/C.20 as
-far as naming them goes. C.19 and C.21 are FL-18 — their history question is
-already answered by C.15/C.17, and all that is left of them is a sort key made
-of score gaps this package never sees.
+**All eight float criteria are named.** C.14/C.16 through `floatCriterion` on the
+resident being left unpaired; C.15/C.17, C.18/C.20 and C.19/C.21 through
+`floatCostOfPair` on a proposed pairing, which derives the directions and the
+score difference itself.
 
-**One expectation cannot be tested at all.** `canFloat` is handed a direction
-and one player's history; which decision the engine was making when it asked is
-not visible from in here, so nothing can notice a `DESC` question asked about a
-resident who is being paired rather than left over. See *Which criterion binds
-whom* above — FL-19 is a caller contract with no in-library check, written down
-rather than left looking covered.
+What stays out is FL-18, and it is not a float rule this package declines — it
+is the comparison *between whole candidate pairings*: counts in criterion order,
+then score-difference sequences taken descending and compared lexicographically.
+That needs every pairing in a bracket at once. This package supplies the per-pair
+costs it operates on.
 
-There is deliberately no pair-level helper. The two criteria attach to two
-different decisions rather than to the two ends of one pairing, so a
-`canPairFloat(higher, lower)` would encode a rule FIDE does not state.
+FL-19 used to be a caller contract: `canFloat` was handed a direction and one
+player's history, so nothing could notice a `DESC` question asked about a
+resident being *paired* rather than left over. `floatCostOfPair` closes it by
+taking the pair and deriving the directions, which makes the wrong-side error
+unrepresentable rather than merely documented.
+
+An earlier revision of this file argued there should be **no** pair-level helper
+at all. That reasoning was right about C.14 versus C.15 — two different decisions
+— and wrong to generalise: C.14/C.16 are genuinely not pair-shaped, and
+everything else is. The split below is the corrected version.
 
 FL-13 is a third contract of the same kind, kept in the ✅ column because the
 *shape* of its failure is pinned by a test — always permissive, never

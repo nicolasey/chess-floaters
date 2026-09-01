@@ -16,15 +16,26 @@ const KNOWN_ENTRIES = new Set<unknown>([
  * - **C16** minimise resident downfloaters who downfloated two rounds before
  * - **C17** minimise MDP opponents who upfloated two rounds before
  */
-export type FloatCriterion = "C14" | "C15" | "C16" | "C17" | "C18" | "C20";
+export type FloatCriterion =
+  | "C14"
+  | "C15"
+  | "C16"
+  | "C17"
+  | "C18"
+  | "C19"
+  | "C20"
+  | "C21";
 
 /**
- * The criteria that can be *enforced*. C.18 and C.20 are missing on purpose:
- * they minimise score differences, which orders a bucket rather than refusing a
+ * The criteria that can be *enforced*. C.18–C.21 are missing on purpose: they
+ * minimise score differences, which orders a bucket rather than refusing a
  * pairing, so treating one as a threshold would turn an ordering criterion into
  * a prohibition.
  */
-export type EnforceableCriterion = Exclude<FloatCriterion, "C18" | "C20">;
+export type EnforceableCriterion = Extract<
+  FloatCriterion,
+  "C14" | "C15" | "C16" | "C17"
+>;
 
 /** How strict to be: a round count, or the least-priority criterion to enforce. */
 export type FloatProtection = number | EnforceableCriterion;
@@ -42,9 +53,9 @@ const PRIORITY: Record<FloatCriterion, number> = {
   C16: 2,
   C17: 3,
   C18: 4,
-  // C19 sits here, and C21 after C20 — neither is ever returned, both order by
-  // score differences this package does not see.
+  C19: 5,
   C20: 6,
+  C21: 7,
 };
 const ENFORCEABLE = new Set<unknown>(["C14", "C15", "C16", "C17"]);
 const ROLES = new Set<unknown>(["resident", "mdp"]);
@@ -171,9 +182,9 @@ export function canFloat(
   if (typeof protection !== "number") {
     // Unguarded, an unknown criterion makes PRIORITY[protection] undefined and
     // every comparison false — a blanket "cannot float" that looks deliberate.
-    // C18 and C20 are refused for a different reason: they order a bucket by
-    // score difference and never refuse a pairing, so there is no threshold to
-    // set them at.
+    // C18–C21 are refused for a different reason: they order a bucket by score
+    // difference and never refuse a pairing, so there is no threshold to set
+    // them at.
     if (!ENFORCEABLE.has(protection))
       throw new RangeError(
         `protection must be a round count or one of C14, C15, C16, C17, got ${String(protection)}`,
