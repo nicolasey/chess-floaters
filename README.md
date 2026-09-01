@@ -23,13 +23,13 @@ npm install @nicolasey/chess-floaters
 ## Usage
 
 ```ts
-import { canFloat, Floater, type FloatRecord } from "@nicolasey/chess-floaters";
+import { canFloat, Floater, Unplayed, type FloatRecord } from "@nicolasey/chess-floaters";
 
 // Oldest round first, most recent last. One entry per round, played or not:
 // byes count as downfloats. See docs/fide-float-rules.md.
 const history: FloatRecord[] = [
-  { floater: null },        // round 1: no float
-  { floater: Floater.DESC } // round 2: floated down
+  { floater: null },          // round 1: no float
+  { floater: Unplayed.BYE }   // round 2: bye — a downfloat under art. 1.4
 ];
 
 canFloat(Floater.DESC, history); // false — floated down too recently
@@ -46,7 +46,7 @@ canFloat(Floater.DESC, history, 0); // true  — protection disabled
 | Param | Type | Description |
 |---|---|---|
 | `direction` | `Floater` | Direction to test: `Floater.ASC` (`↑`) or `Floater.DESC` (`↓`) |
-| `playerHistory` | `FloatRecord[]` | Chronological history, oldest first |
+| `playerHistory` | `FloatRecord[]` | Chronological history, oldest first, one entry per round played or not |
 | `protection` | `number` | How many recent rounds to scan. `0` disables the check |
 
 Returns `true` if the player did **not** float in that direction within the last
@@ -54,7 +54,7 @@ Returns `true` if the player did **not** float in that direction within the last
 
 Throws `RangeError` if `protection` is not a non-negative integer, and
 `TypeError` if a record inside the window is missing or has a `floater` that is
-neither a `Floater` nor `null`. Neither an invalid window nor an unreadable
+neither a `Floater`, an `Unplayed` nor `null`. Neither an invalid window nor an unreadable
 round may silently read as "float allowed". Records older than the window are
 never read, and so never validated.
 
@@ -64,23 +64,36 @@ never read, and so never validated.
 enum Floater { ASC = "↑", DESC = "↓" }
 ```
 
+### `Unplayed`
+
+```ts
+enum Unplayed { BYE = "BYE", FORFEIT = "FORFEIT" }
+```
+
 ### `FloatRecord`
 
 ```ts
-type FloatRecord = { floater: Floater | null };
+type FloatRecord = { floater: Floater | Unplayed | null };
 ```
 
 Your own round objects can extend it — only `floater` is read.
 
-A bye is a downfloat under FIDE Art. 1.4, and a skipped round silently shifts
-the lookback window, so push a record for **every** round:
+Records must be chronological, oldest first, with **no round left out** — an
+omitted round shifts the lookback window and cannot be detected from inside the
+library. Rounds that were not played are recorded as such:
 
 | That round | Record |
 |---|---|
-| Beat/played a lower-scored opponent | `{ floater: Floater.DESC }` |
+| Played a lower-scored opponent | `{ floater: Floater.DESC }` |
 | Played a higher-scored opponent | `{ floater: Floater.ASC }` |
-| Same score, or unplayed scoring what a loss scores | `{ floater: null }` |
-| Pairing-allocated bye, half-point bye | `{ floater: Floater.DESC }` |
+| Played someone on the same score | `{ floater: null }` |
+| Pairing-allocated bye, half-point bye | `{ floater: Unplayed.BYE }` |
+| Unplayed, scoring what a loss scores (forfeit, absence, zero-point bye) | `{ floater: Unplayed.FORFEIT }` |
+
+`Unplayed.BYE` counts as a downfloat and `Unplayed.FORFEIT` as no float, per
+FIDE art. 1.4 — the library applies that itself, so record the round as it
+happened rather than translating it. The split is by points, not by label: a
+zero-point bye scores what a loss scores, so it is a `FORFEIT` here.
 
 ## FIDE compliance
 

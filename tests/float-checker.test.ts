@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import type { FloatRecord } from "../src/floater.types";
-import { Floater } from "../src/floater.enum";
+import { Floater, Unplayed } from "../src/floater.enum";
 import { canFloat } from "../src/floater-checker";
 
 // FL-5, FL-7
@@ -225,29 +225,53 @@ test("FL-10: the_documented_cost_recipe_ranks_the_four_float_criteria", () => {
   expect(floatCost(Floater.ASC, upPrevious)).toBe(2);
 });
 
-// FL-13 — the hazard behind FL-11/FL-12, pinned rather than fixed. The window
-// counts array slots, not round numbers, so a round the caller never pushed is
-// undetectable from in here.
-test("FL-13: dropping_a_bye_round_flips_the_verdict_the_permissive_way", () => {
-  // Rounds 1-2 clean, round 3 a pairing-allocated bye. Art. 1.4 makes that bye
-  // a downfloat in the previous round, so C.14 restricts a downfloat now.
+// FL-11 — art. 1.4: a bye, or any unplayed round scoring above a loss, is a
+// downfloat. The library resolves that itself; callers record the round as it
+// happened rather than translating it to a direction.
+test("FL-11: a_bye_counts_as_a_downfloat", () => {
+  const history: FloatRecord[] = [{ floater: null }, { floater: Unplayed.BYE }];
+
+  expect(canFloat(Floater.DESC, history)).toBeFalse();
+  // A downfloat, not a float in both directions — C.15 is untouched.
+  expect(canFloat(Floater.ASC, history)).toBeTrue();
+
+  // Indistinguishable from a downfloat earned over the board, which is the point.
+  expect(canFloat(Floater.DESC, [{ floater: null }, { floater: Floater.DESC }])).toBeFalse();
+});
+
+// FL-12 — an unplayed round scoring what a loss scores is no float, but the
+// round still happened and still holds its slot.
+test("FL-12: a_forfeit_is_no_float_but_still_holds_its_slot", () => {
+  const history: FloatRecord[] = [
+    { floater: Floater.DESC },
+    { floater: Unplayed.FORFEIT },
+    { floater: Unplayed.FORFEIT },
+  ];
+
+  // The downfloat is three rounds back, so the window no longer reaches it.
+  expect(canFloat(Floater.DESC, history)).toBeTrue();
+
+  // Drop the two forfeits and the same tournament reads as a fresh downfloat:
+  // the slots are what keeps the window aligned.
+  expect(canFloat(Floater.DESC, [{ floater: Floater.DESC }])).toBeFalse();
+});
+
+// FL-13 — what BYE and FORFEIT cannot fix. An omitted round leaves no trace:
+// the window counts array slots, and the library has no round number to check
+// them against.
+test("FL-13: an_omitted_round_is_undetectable_and_reads_permissively", () => {
+  // Rounds 1-2 clean, round 3 a bye. C.14 restricts a downfloat now.
   const correct: FloatRecord[] = [
     { floater: null },
     { floater: null },
-    { floater: Floater.DESC }, // the PAB
+    { floater: Unplayed.BYE },
   ];
 
   expect(canFloat(Floater.DESC, correct)).toBeFalse();
 
-  // Two ways to encode it wrongly. Both read as "float allowed" — the unsafe
-  // direction — and neither is distinguishable from a legitimate history.
-  const roundDropped: FloatRecord[] = [{ floater: null }, { floater: null }];
-  const byeRecordedAsNoFloat: FloatRecord[] = [
-    { floater: null },
-    { floater: null },
-    { floater: null },
-  ];
+  // Leave the bye round out and the verdict flips the unsafe way, with nothing
+  // to distinguish the result from a legitimate two-round history.
+  const roundOmitted: FloatRecord[] = [{ floater: null }, { floater: null }];
 
-  expect(canFloat(Floater.DESC, roundDropped)).toBeTrue();
-  expect(canFloat(Floater.DESC, byeRecordedAsNoFloat)).toBeTrue();
+  expect(canFloat(Floater.DESC, roundOmitted)).toBeTrue();
 });
