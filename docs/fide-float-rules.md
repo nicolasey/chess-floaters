@@ -56,7 +56,28 @@ The four criteria the library exists to serve, verbatim:
 | FL-9 | — | These are quality criteria, so the check must be relaxable | `protection` 1 narrows the window, 0 disables it | `when_I_reduce_protection`, `when_I_disable_protection` | ✅ |
 | FL-10 | C.14–C.17 | Round distance outranks direction, so the four positions must be **rankable**, not just pass/fail | `floatCriterion` names the criterion breached: C.14/C.15 for the previous round, C.16/C.17 for two before | `FL-10:` | ✅ |
 | FL-20 | C.14–C.17 | Quality criteria are relaxed one at a time down the priority order, so every step must be expressible | `canFloat(dir, history, "C14")` enforces C.14 while tolerating C.15 | `FL-20:` ×2 | ✅ |
-| FL-19 | C.14/C.16 vs C.15/C.17 | Downfloat criteria bind the resident downfloater, upfloat criteria the MDP opponent | caller tests both sides of the pair | n/a | ⚠️ caller contract |
+| FL-19 | C.14/C.16 vs C.15/C.17 | The downfloat and upfloat criteria attach to two **different decisions**, not to the two sides of one pair | test `DESC` on the resident you are about to leave unpaired, `ASC` on the resident you are about to pair with an MDP | n/a | ⚠️ caller contract |
+
+### Which criterion binds whom
+
+Easy to get backwards, and getting it backwards fails permissively like
+everything else here. Art. 1.3.2 splits a bracket into **residents**, who come
+from its own scoregroup, and **MDPs**, who "remained unpaired after the pairing
+of the previous bracket" and arrive from above.
+
+| Decision the engine is making | Player to test | Direction | Criteria |
+|---|---|---|---|
+| Which resident do I leave unpaired, to move down to the next bracket? | that resident | `DESC` | C.14, C.16 |
+| Which resident do I pair with this MDP? | that resident | `ASC` | C.15, C.17 |
+
+Both criteria are about **residents**, in two different roles — a resident who
+floats down by being left over, and a resident who floats up by being paired
+with someone from above. They are not the two ends of one pairing, so there is
+no pair-level call to make here: each decision is one `canFloat` on one player.
+
+An MDP's *own* downfloat history has no count-based criterion at all. It appears
+only in C.18/C.20, as score differences, which is FL-18 and out of scope. Worth
+knowing before going looking for a criterion that does not exist.
 
 FL-10 and FL-20 are the shape mismatch worth understanding before building on
 this. C.14–C.17 sit in the *quality* block; only C.1–C.3 are absolute, and FIDE
@@ -155,13 +176,16 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 Twenty expectations, one unverifiable.
 
-**One expectation cannot be tested at all.** C.14/C.16 bind the resident
-downfloater and C.15/C.17 the MDP opponent, so a compliant engine tests the
-higher-scored player for `DESC` and the lower one for `ASC`. `canFloat` sees a
-direction and one player's history, never a pairing, so it cannot notice a
-caller testing the wrong side — which fails permissively, like every other gap
-here. FL-19 is a caller contract with no in-library check, written down rather
-than left looking covered.
+**One expectation cannot be tested at all.** `canFloat` is handed a direction
+and one player's history; which decision the engine was making when it asked is
+not visible from in here, so nothing can notice a `DESC` question asked about a
+resident who is being paired rather than left over. See *Which criterion binds
+whom* above — FL-19 is a caller contract with no in-library check, written down
+rather than left looking covered.
+
+There is deliberately no pair-level helper. The two criteria attach to two
+different decisions rather than to the two ends of one pairing, so a
+`canPairFloat(higher, lower)` would encode a rule FIDE does not state.
 
 FL-13 is a third contract of the same kind, kept in the ✅ column because the
 *shape* of its failure is pinned by a test — always permissive, never
