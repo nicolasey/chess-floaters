@@ -1,4 +1,4 @@
-import type { Floater, Unplayed } from "./floater.enum";
+import type { Floater, Unplayed } from "./floater.enum.js";
 
 /**
  * One round in a player's history, played or not.

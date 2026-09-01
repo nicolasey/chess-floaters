@@ -1,5 +1,5 @@
-import type { FloatRecord } from "./floater.types";
-import { Floater, Unplayed } from "./floater.enum";
+import type { FloatRecord } from "./floater.types.js";
+import { Floater, Unplayed } from "./floater.enum.js";
 
 const DEFAULT_FLOAT_PROTECTION = 2;
 const KNOWN_ENTRIES = new Set<unknown>([
