@@ -59,3 +59,11 @@ test("README: recordFor", () => {
   expect(recordFor({ playerScore: 2, opponentScore: 2.5 })).toEqual({ floater: Floater.ASC });
   expect(recordFor({ playerScore: 3, opponentScore: 3 })).toEqual({ floater: null });
 });
+
+test("README: floatCriterion roles", () => {
+  const lastRound: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
+  const twoBack: FloatRecord[] = [{ floater: Floater.DESC }, { floater: null }];
+
+  expect(floatCriterion(Floater.DESC, lastRound, "mdp")).toBe("C18");
+  expect(floatCriterion(Floater.DESC, twoBack, "mdp")).toBe("C20");
+});

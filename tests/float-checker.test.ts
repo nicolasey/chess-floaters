@@ -307,3 +307,52 @@ test("FL-20: an_unknown_strictness_level_is_refused", () => {
   // @ts-expect-error
   expect(() => canFloat(Floater.DESC, history, "all")).toThrow(RangeError);
 });
+
+// FL-21 — an MDP's own downfloat history answers to C.18/C.20, not C.14/C.16.
+// C.14 is about *residents* left unpaired; once the same player has moved down,
+// the same history feeds a different criterion. No count criterion covers it.
+test("FL-21: an_MDPs_downfloat_history_falls_under_C18_and_C20", () => {
+  const lastRound: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
+  const twoBack: FloatRecord[] = [{ floater: Unplayed.BYE }, { floater: null }];
+
+  expect(floatCriterion(Floater.DESC, lastRound, "mdp")).toBe("C18");
+  expect(floatCriterion(Floater.DESC, twoBack, "mdp")).toBe("C20");
+
+  // Same history, same question, different role — different criterion.
+  expect(floatCriterion(Floater.DESC, lastRound, "resident")).toBe("C14");
+  expect(floatCriterion(Floater.DESC, twoBack, "resident")).toBe("C16");
+
+  // Resident is the default, so every existing caller keeps its answer.
+  expect(floatCriterion(Floater.DESC, lastRound)).toBe("C14");
+
+  // Nothing to report is still nothing to report, whatever the role.
+  expect(floatCriterion(Floater.DESC, [{ floater: null }], "mdp")).toBeNull();
+});
+
+// FL-21 — upfloats do not take a role: an MDP opponent is always a resident,
+// and an MDP outscores its bracket, so it downfloats whenever paired there.
+test("FL-21: an_MDP_cannot_be_asked_about_an_upfloat", () => {
+  const history: FloatRecord[] = [{ floater: Floater.ASC }];
+
+  expect(floatCriterion(Floater.ASC, history, "resident")).toBe("C15");
+  expect(() => floatCriterion(Floater.ASC, history, "mdp")).toThrow(RangeError);
+
+  // @ts-expect-error — the type forbids it; the guard is for untyped callers.
+  expect(() => floatCriterion(Floater.DESC, history, "S1")).toThrow(RangeError);
+});
+
+// FL-22 — C.18/C.20 minimise score differences: they order a bucket, they never
+// refuse a pairing. Accepting one as a strictness level would turn an ordering
+// criterion into a prohibition, the exact confusion floatCriterion exists to end.
+test("FL-22: C18_and_C20_can_be_named_but_not_enforced", () => {
+  const history: FloatRecord[] = [{ floater: null }, { floater: Floater.DESC }];
+
+  // @ts-expect-error — EnforceableCriterion excludes them at the type level too.
+  expect(() => canFloat(Floater.DESC, history, "C18")).toThrow(RangeError);
+  // @ts-expect-error
+  expect(() => canFloat(Floater.DESC, history, "C20")).toThrow(RangeError);
+
+  // The four that do forbid are still accepted.
+  for (const level of ["C14", "C15", "C16", "C17"] as const)
+    expect(canFloat(Floater.DESC, history, level)).toBeFalse();
+});

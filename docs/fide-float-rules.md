@@ -55,6 +55,8 @@ The four criteria the library exists to serve, verbatim:
 | FL-8 | C.14–C.17 | No float in the window → both directions allowed | `[]` and `[null, null, null]` → `true` | `when_history_is_empty`, `when_player_has_not_floatted` | ✅ |
 | FL-9 | — | These are quality criteria, so the check must be relaxable | `protection` 1 narrows the window, 0 disables it | `when_I_reduce_protection`, `when_I_disable_protection` | ✅ |
 | FL-10 | C.14–C.17 | Round distance outranks direction, so the four positions must be **rankable**, not just pass/fail | `floatCriterion` names the criterion breached: C.14/C.15 for the previous round, C.16/C.17 for two before | `FL-10:` | ✅ |
+| FL-21 | C.14/C.16 vs C.18/C.20 | A downfloat answers to a different criterion depending on the player's role; an MDP cannot upfloat at all | `role: "mdp"` yields C.18/C.20; `ASC` with `role: "mdp"` throws | `FL-21:` ×2 | ✅ |
+| FL-22 | C.18, C.20 | These order a bucket by score difference and never refuse a pairing, so they can be named but not enforced | `canFloat(…, "C18")` throws; `floatCriterion` returns it | `FL-22:` | ✅ |
 | FL-20 | C.14–C.17 | Quality criteria are relaxed one at a time down the priority order, so every step must be expressible | `canFloat(dir, history, "C14")` enforces C.14 while tolerating C.15 | `FL-20:` ×2 | ✅ |
 | FL-19 | C.14/C.16 vs C.15/C.17 | The downfloat and upfloat criteria attach to two **different decisions**, not to the two sides of one pair | test `DESC` on the resident you are about to leave unpaired, `ASC` on the resident you are about to pair with an MDP | n/a | ⚠️ caller contract |
 
@@ -67,17 +69,25 @@ of the previous bracket" and arrive from above.
 
 | Decision the engine is making | Player to test | Direction | Criteria |
 |---|---|---|---|
-| Which resident do I leave unpaired, to move down to the next bracket? | that resident | `DESC` | C.14, C.16 |
+| Which resident do I leave unpaired, to move down to the next bracket? | that resident, `role: "resident"` | `DESC` | C.14, C.16 |
 | Which resident do I pair with this MDP? | that resident | `ASC` | C.15, C.17 |
+| Which MDP do I pair here, given it already downfloated? | that MDP, `role: "mdp"` | `DESC` | C.18, C.20 |
 
-Both criteria are about **residents**, in two different roles — a resident who
-floats down by being left over, and a resident who floats up by being paired
-with someone from above. They are not the two ends of one pairing, so there is
-no pair-level call to make here: each decision is one `canFloat` on one player.
+The first two are about **residents**, in two different roles — one floats down
+by being left over, the other floats up by being paired with someone from above.
+They are not the two ends of one pairing, so there is no pair-level call to make
+here: each decision is one call on one player.
 
-An MDP's *own* downfloat history has no count-based criterion at all. It appears
-only in C.18/C.20, as score differences, which is FL-18 and out of scope. Worth
-knowing before going looking for a criterion that does not exist.
+The third is the same player as the first, one step later: a resident left
+unpaired *becomes* the next bracket's MDP within the same round. Same history,
+same question, and yet C.14 while being left over and C.18 once arrived — which
+is why the criterion cannot be named without the role.
+
+An MDP's *own* downfloat history has no count-based criterion at all — C.14 is
+about residents. It appears only in C.18/C.20, which order by score difference
+rather than forbid. `floatCriterion` names those when told the player is an MDP
+(FL-21); `canFloat` refuses them as a strictness level, because there is no
+threshold to set an ordering criterion at (FL-22).
 
 FL-10 and FL-20 are the shape mismatch worth understanding before building on
 this. C.14–C.17 sit in the *quality* block; only C.1–C.3 are absolute, and FIDE
@@ -160,7 +170,7 @@ out is invisible (FL-13).
 
 | ID | Art. | Rule | Why not here | Status |
 |---|---|---|---|---|
-| FL-18 | C.18–C.21 | Minimise the score differences of repeated floats, as a tie-break once C.14–C.17 are equal | needs the bracket scores; this package only ever sees float directions | ⛔ |
+| FL-18 | C.19, C.21 | Order MDP opponents who repeated an upfloat by score difference, once C.15/C.17 are equal | same population and lookback as C.15/C.17, which are already answered — only the sort key is missing, and it is a score gap this package never sees | ⛔ |
 
 Also out of scope, and not given IDs: C.1–C.13 (rematches, colour preferences,
 the PAB assignee, bracket completion, topscorers), acceleration (C.04.5 Baku),
@@ -170,11 +180,16 @@ and every non-Dutch pairing system. All of that lives in your pairing engine.
 
 | Status | Count | IDs |
 |---|---|---|
-| ✅ correct and covered | 18 | FL-1…FL-17, FL-20 |
+| ✅ correct and covered | 20 | FL-1…FL-17, FL-20…FL-22 |
 | ⚠️ caller contract, no in-library check | 1 | FL-19 |
 | ⛔ out of scope | 1 | FL-18 |
 
-Twenty expectations, one unverifiable.
+Twenty-two expectations, one unverifiable.
+
+Six of FIDE's eight float criteria are covered: C.14–C.17 in full, C.18/C.20 as
+far as naming them goes. C.19 and C.21 are FL-18 — their history question is
+already answered by C.15/C.17, and all that is left of them is a sort key made
+of score gaps this package never sees.
 
 **One expectation cannot be tested at all.** `canFloat` is handed a direction
 and one player's history; which decision the engine was making when it asked is

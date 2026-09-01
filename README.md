@@ -76,10 +76,10 @@ canFloat(Floater.DESC, floated);    // false — downfloated last round
 canFloat(Floater.DESC, floated, 0); // true  — protection disabled
 ```
 
-### `floatCriterion(direction, playerHistory): FloatCriterion | null`
+### `floatCriterion(direction, playerHistory, role?): FloatCriterion | null`
 
-Names the criterion a float in that direction would breach — `"C14"`, `"C15"`,
-`"C16"`, `"C17"` — or `null` if none would be. Rank candidate pairings by what
+Names the criterion a float in that direction would breach, or `null` if none
+would be. Rank candidate pairings by what
 comes back and take the cheapest, rather than discarding everything that fails:
 FIDE minimises these in priority order, so an engine that treats `false` as
 "forbidden" can dead-end on a bracket FIDE calls pairable.
@@ -92,6 +92,20 @@ floatCriterion(Floater.DESC, lastRound); // "C14" — the costliest
 floatCriterion(Floater.DESC, twoBack);   // "C16" — same direction, cheaper
 floatCriterion(Floater.ASC, lastRound);  // null  — direction-matched
 ```
+
+A downfloat answers to a different criterion depending on `role`, which defaults
+to `"resident"`. C.14/C.16 are about a resident left unpaired; once that same
+player has moved down, its downfloat history answers to C.18/C.20 instead — the
+only criteria covering it, since no *count* criterion does:
+
+```ts
+floatCriterion(Floater.DESC, lastRound, "mdp"); // "C18"
+floatCriterion(Floater.DESC, twoBack, "mdp");   // "C20"
+```
+
+An upfloat takes no role: an MDP opponent is always a resident, and an MDP
+outscores its bracket, so it downfloats whenever paired there and can never
+upfloat. Asking anyway throws rather than returning a plausible `"C15"`.
 
 `canFloat` also takes a criterion in place of a round count, as the
 least-priority one still enforced. That is how FIDE relaxes them, and it reaches
@@ -162,14 +176,22 @@ library.
 ### `FloatCriterion` and `FloatProtection`
 
 ```ts
-type FloatCriterion = "C14" | "C15" | "C16" | "C17";
-type FloatProtection = number | FloatCriterion;
+type FloatCriterion = "C14" | "C15" | "C16" | "C17" | "C18" | "C20";
+type EnforceableCriterion = Exclude<FloatCriterion, "C18" | "C20">;
+type FloatProtection = number | EnforceableCriterion;
+type PlayerRole = "resident" | "mdp";
 ```
 
-`FloatCriterion` is ordered as FIDE ranks the criteria: C.14 is the costliest to
-breach, C.17 the cheapest. As a `protection` value it means "the least-priority
-criterion still enforced"; as a number, `protection` is a count of recent rounds
-to scan, and `0` disables the check.
+Ordered as FIDE ranks the criteria: C.14 is the costliest to breach, C.20 the
+cheapest. As a `protection` value a criterion means "the least-priority one
+still enforced"; as a number, `protection` is a count of recent rounds to scan,
+and `0` disables the check.
+
+`canFloat` accepts only the **enforceable** four. C.18 and C.20 minimise score
+differences — they order a bucket rather than refuse a pairing, so there is no
+threshold to set them at, and accepting one would turn an ordering criterion
+into a prohibition. `floatCriterion` names them; your engine orders that bucket
+by score difference.
 
 ## Which criterion binds whom
 
@@ -180,16 +202,24 @@ pairing, not to the two ends of one pairing:
 |---|---|---|
 | Which resident do I leave unpaired, to move down a bracket? | that resident | `canFloat(Floater.DESC, …)` — C.14, C.16 |
 | Which resident do I pair with a moved-down player? | that resident | `canFloat(Floater.ASC, …)` — C.15, C.17 |
+| Which MDP do I pair here, given it already downfloated? | that MDP | `floatCriterion(Floater.DESC, …, "mdp")` — C.18, C.20 |
 
-Both are about residents, in two different roles. There is deliberately no
-pair-level helper: each decision is one call on one player, and a
-`canPairFloat(higher, lower)` would encode a rule FIDE does not state. See
+The first two are about residents in two different roles, and are not the two
+ends of one pairing — there is deliberately no pair-level helper, since a
+`canPairFloat(higher, lower)` would encode a rule FIDE does not state.
+
+The third is the same player as the first, one step later: a resident left
+unpaired becomes the next bracket's MDP within the same round. Same history,
+same question — C.14 while being left over, C.18 once arrived. That is why the
+criterion cannot be named without the role. See
 [the traceability doc](./docs/fide-float-rules.md) for the article references.
 
 ## FIDE compliance
 
-This package implements the lookback of FIDE (Dutch) criteria C.14–C.17 and
-nothing else. Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before
+This package answers six of FIDE's eight float criteria: C.14–C.17 in full, and
+C.18/C.20 as far as naming them goes. C.19 and C.21 are out of scope — their
+history question is the one C.15/C.17 already answer, and all that is left of
+them is a sort key made of score gaps this package never sees. Read [docs/fide-float-rules.md](./docs/fide-float-rules.md) before
 building a pairing engine on it: every rule is turned into a numbered
 expectation with the test that defends it, or a note saying why none can.
 
